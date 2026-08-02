@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       Ars Nova Core
  * Plugin URI:        https://arsnovasingers.org
- * Description:       Site-specific content structure for Ars Nova Singers — custom post types (Productions, People, Callouts), the ACF options page, ACF field groups, and image sizes. Kept in a plugin (not the theme) so the site's data layer survives any theme change (StageHand → Kadence). Content registrations lifted verbatim from the StageHand theme.
- * Version:           1.0.0
+ * Description:       Site-specific content structure for Ars Nova Singers — custom post types (Productions, People, Callouts), the ACF options page, ACF field groups, image sizes, and plugin-registered page templates. Kept in a plugin (not the theme) so the site's data layer survives any theme change (StageHand → Kadence). Content registrations lifted verbatim from the StageHand theme.
+ * Version:           1.1.0
  * Author:            Ars Nova Singers
  * Author URI:        https://arsnovasingers.org
  * License:           GPL-2.0-or-later
@@ -24,6 +24,12 @@ define( 'ARS_NOVA_CORE_DIR', plugin_dir_path( __FILE__ ) );
 require_once ARS_NOVA_CORE_DIR . 'includes/custom-post-types.php';
 require_once ARS_NOVA_CORE_DIR . 'includes/acf-options.php';
 require_once ARS_NOVA_CORE_DIR . 'includes/image-sizes.php';
+
+/**
+ * Page templates registered from the plugin rather than the theme, so they
+ * survive a theme change for the same reason the CPTs above do.
+ */
+require_once ARS_NOVA_CORE_DIR . 'includes/page-templates.php';
 
 /**
  * Load ACF field-group definitions from this plugin's acf-json folder, so the
