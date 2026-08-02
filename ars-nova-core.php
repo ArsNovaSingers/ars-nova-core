@@ -3,7 +3,7 @@
  * Plugin Name:       Ars Nova Core
  * Plugin URI:        https://arsnovasingers.org
  * Description:       Site-specific content structure for Ars Nova Singers — custom post types (Productions, People, Callouts), the ACF options page, ACF field groups, image sizes, and plugin-registered page templates. Kept in a plugin (not the theme) so the site's data layer survives any theme change (StageHand → Kadence). Content registrations lifted verbatim from the StageHand theme.
- * Version:           1.3.0
+ * Version:           1.3.1
  * Author:            Ars Nova Singers
  * Author URI:        https://arsnovasingers.org
  * License:           GPL-2.0-or-later

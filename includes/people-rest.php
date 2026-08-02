@@ -198,7 +198,25 @@ function arsnova_core_people_upsert( $request ) {
 			continue;
 		}
 
-		$existing = arsnova_core_find_person_by_title( $title );
+		/*
+		 * An explicit `id` wins over title matching.
+		 *
+		 * The `person` CPT carries 144 legacy StageHand records whose titles
+		 * ("00 Staff - Tom Morgan", "Boyd, James") are not the name we want to
+		 * display. Matching on title alone would create a duplicate alongside
+		 * the legacy record instead of updating it — and the legacy record is
+		 * the one that already has the headshot attached.
+		 */
+		$existing = 0;
+		if ( ! empty( $row['id'] ) ) {
+			$candidate = (int) $row['id'];
+			if ( $candidate > 0 && 'person' === get_post_type( $candidate ) ) {
+				$existing = $candidate;
+			}
+		}
+		if ( ! $existing ) {
+			$existing = arsnova_core_find_person_by_title( $title );
+		}
 
 		if ( $dry_run ) {
 			$results[] = array(
