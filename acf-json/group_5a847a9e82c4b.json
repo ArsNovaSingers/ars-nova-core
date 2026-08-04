@@ -21,6 +21,46 @@
             "selected": 0
         },
         {
+            "key": "field_68b1a0000001",
+            "label": "Hero Eyebrow",
+            "name": "hero_eyebrow",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "Small label above the hero headline, e.g. \"Ars Nova Singers · Opening the 2026–27 Season\".",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "50",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_68b1a0000002",
+            "label": "Hero Headline (optional override)",
+            "name": "hero_headline",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "Optional poetic/marketing headline for the hero. If left blank, the post title is used.",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "50",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
+        },
+        {
             "key": "field_645bf49e0706c",
             "label": "Subheader",
             "name": "subheader",
@@ -113,7 +153,8 @@
             },
             "choices": {
                 "url": "URL",
-                "eventbrite": "EventBrite"
+                "eventbrite": "EventBrite",
+                "tickera": "Tickera (WooCommerce Bridge)"
             },
             "default_value": "url",
             "allow_null": 0,
@@ -172,6 +213,34 @@
             },
             "default_value": "",
             "placeholder": "",
+            "prepend": "",
+            "append": "",
+            "maxlength": ""
+        },
+        {
+            "key": "field_68b1a0000004",
+            "label": "Tickera Event ID",
+            "name": "tickera_event_id",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "The Tickera event (tc_events) post ID this production sells tickets for. Renders as the ticket widget in the Tickets section, right under the hero.",
+            "required": 0,
+            "conditional_logic": [
+                [
+                    {
+                        "field": "field_5f2b237c3a0ce",
+                        "operator": "==",
+                        "value": "tickera"
+                    }
+                ]
+            ],
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "placeholder": "e.g. 6643",
             "prepend": "",
             "append": "",
             "maxlength": ""
@@ -249,7 +318,7 @@
             "name": "details",
             "aria-label": "",
             "type": "repeater",
-            "instructions": "",
+            "instructions": "Quick facts shown under the hero — e.g. one row with icon \"Location Pin\" for the venue, one with \"Calendar\" for the date. Rendered as a compact meta line.",
             "required": 0,
             "conditional_logic": 0,
             "wrapper": {
@@ -710,6 +779,87 @@
             "max_size": "",
             "mime_types": "",
             "preview_size": "thumbnail"
+        },
+        {
+            "key": "field_68b1a0000005",
+            "label": "Story & Artist",
+            "name": "",
+            "aria-label": "",
+            "type": "tab",
+            "instructions": "Narrative sections for the Production Template (added v1.4.0, 2026-08-03).",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "placement": "left",
+            "endpoint": 0,
+            "selected": 0
+        },
+        {
+            "key": "field_68b1a0000006",
+            "label": "Story Heading",
+            "name": "story_heading",
+            "aria-label": "",
+            "type": "text",
+            "instructions": "Heading for the narrative section below the tickets, e.g. \"The guitar's natural room\".",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "maxlength": "",
+            "placeholder": "",
+            "prepend": "",
+            "append": ""
+        },
+        {
+            "key": "field_68b1a0000007",
+            "label": "Story Body",
+            "name": "story_body",
+            "aria-label": "",
+            "type": "wysiwyg",
+            "instructions": "The main narrative copy for the production.",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "default_value": "",
+            "tabs": "all",
+            "toolbar": "full",
+            "media_upload": 0,
+            "delay": 0
+        },
+        {
+            "key": "field_68b1a0000008",
+            "label": "Featured Artist",
+            "name": "featured_artist",
+            "aria-label": "",
+            "type": "post_object",
+            "instructions": "Links to an existing Person profile. The template pulls that profile's bio automatically instead of duplicating it here.",
+            "required": 0,
+            "conditional_logic": 0,
+            "wrapper": {
+                "width": "",
+                "class": "",
+                "id": ""
+            },
+            "post_type": [
+                "person"
+            ],
+            "taxonomy": "",
+            "allow_null": 1,
+            "multiple": 0,
+            "return_format": "id",
+            "ui": 1
         }
     ],
     "location": [
@@ -730,5 +880,5 @@
     "active": true,
     "description": "",
     "show_in_rest": 0,
-    "modified": 1731967122
+    "modified": 1785801517
 }

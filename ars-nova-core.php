@@ -3,7 +3,7 @@
  * Plugin Name:       Ars Nova Core
  * Plugin URI:        https://arsnovasingers.org
  * Description:       Site-specific content structure for Ars Nova Singers — custom post types (Productions, People, Callouts), the ACF options page, ACF field groups, image sizes, and plugin-registered page templates. Kept in a plugin (not the theme) so the site's data layer survives any theme change (StageHand → Kadence). Content registrations lifted verbatim from the StageHand theme.
- * Version:           1.3.1
+ * Version:           1.4.0
  * Author:            Ars Nova Singers
  * Author URI:        https://arsnovasingers.org
  * License:           GPL-2.0-or-later
@@ -16,6 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'ARS_NOVA_CORE_DIR', plugin_dir_path( __FILE__ ) );
+define( 'ARS_NOVA_CORE_VERSION', '1.4.0' );
 
 /**
  * Content structure carried over from the StageHand theme.
@@ -30,6 +31,13 @@ require_once ARS_NOVA_CORE_DIR . 'includes/image-sizes.php';
  * survive a theme change for the same reason the CPTs above do.
  */
 require_once ARS_NOVA_CORE_DIR . 'includes/page-templates.php';
+
+/**
+ * Production Template (v1.4.0, 2026-08-03) — the single reusable front-end
+ * template for every concert (`production`) post. See the file itself for
+ * the full rationale and section order.
+ */
+require_once ARS_NOVA_CORE_DIR . 'includes/production-template.php';
 
 /**
  * People: the `ans_people_group` taxonomy (leadership / board), the per-person
@@ -80,3 +88,16 @@ function arsnova_core_deactivate() {
 	flush_rewrite_rules();
 }
 register_deactivation_hook( __FILE__, 'arsnova_core_deactivate' );
+
+/**
+ * Auto-flush rewrite rules once after an update that changes a CPT's rewrite
+ * rules (v1.4.0 changed `production` from /production/ to /concerts/),
+ * without requiring a manual deactivate/reactivate cycle on the live site.
+ * Runs after arsnova_core_register_cpts() (priority 10 on 'init').
+ */
+add_action( 'init', function () {
+	if ( get_option( 'arsnova_core_flushed_version' ) !== ARS_NOVA_CORE_VERSION ) {
+		flush_rewrite_rules();
+		update_option( 'arsnova_core_flushed_version', ARS_NOVA_CORE_VERSION );
+	}
+}, 20 );

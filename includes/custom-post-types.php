@@ -35,7 +35,13 @@ function arsnova_core_register_cpts() {
 		"capability_type"     => "post",
 		"map_meta_cap"        => true,
 		"hierarchical"        => false,
-		"rewrite"             => array( "slug" => "production", "with_front" => true ),
+		// v1.4.0 (2026-08-03): slug changed from "production" to "concerts" so
+		// production entries publish at the URL pattern the site already uses
+		// (/concerts/<slug>/) instead of the CPT's original default. Old
+		// hand-built concert pages get 301-redirected to their production
+		// entry once approved. See production-template.php for the front-end
+		// template this now serves under.
+		"rewrite"             => array( "slug" => "concerts", "with_front" => true ),
 		"query_var"           => true,
 		"supports"            => array( "title", "editor", "thumbnail", "revisions", "excerpt" ),
 		"menu_icon"           => "dashicons-tickets-alt",
