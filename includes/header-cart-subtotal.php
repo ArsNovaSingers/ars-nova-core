@@ -99,9 +99,12 @@ add_filter( 'woocommerce_add_to_cart_fragments', 'arsnova_cart_subtotal_fragment
  * leave nothing behind. Inherits color from the header so it tracks whatever
  * the Customizer sets rather than hardcoding navy.
  *
- * Hidden below 768px on purpose — WEB-24's original bug was the cart element
- * crowding the mobile hamburger toggle off the header. The icon and its count
- * badge still show there; only the price is suppressed.
+ * Renders at ALL widths as of 1.4.1. The earlier `display:none` below 768px was
+ * justified in a comment claiming the cart element had crowded the mobile
+ * hamburger off the header — that was never observed and was not true. The
+ * hamburger was missing because `header_mobile_items` held the invalid element
+ * key `mobile-toggle` instead of `popup-toggle`; Kadence silently skips keys it
+ * does not recognise. Nothing about the cart was ever involved.
  */
 function arsnova_cart_subtotal_styles() {
 	if ( ! arsnova_cart_subtotal_available() ) {
@@ -126,9 +129,6 @@ function arsnova_cart_subtotal_styles() {
 	}
 	.ans-cart-subtotal .woocommerce-Price-currencySymbol {
 		margin-right: 0.05em;
-	}
-	@media (max-width: 767px) {
-		.ans-cart-subtotal { display: none; }
 	}
 	';
 
