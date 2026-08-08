@@ -3,7 +3,7 @@
  * Plugin Name:       Ars Nova Core
  * Plugin URI:        https://arsnovasingers.org
  * Description:       Site-specific content structure for Ars Nova Singers — custom post types (Productions, People, Callouts), the ACF options page, ACF field groups, image sizes, and plugin-registered page templates. Kept in a plugin (not the theme) so the site's data layer survives any theme change (StageHand → Kadence). Content registrations lifted verbatim from the StageHand theme.
- * Version:           1.4.1
+ * Version:           1.5.0
  * Author:            Ars Nova Singers
  * Author URI:        https://arsnovasingers.org
  * License:           GPL-2.0-or-later
@@ -22,7 +22,7 @@ define( 'ARS_NOVA_CORE_DIR', plugin_dir_path( __FILE__ ) );
  * see claude/plugins/Ars_Nova_Plugin_Build_Rules.md rule 2. Added in 1.4.0;
  * before that the plugin had no internal version constant at all.
  */
-define( 'ARS_NOVA_CORE_VERSION', '1.4.1' );
+define( 'ARS_NOVA_CORE_VERSION', '1.5.0' );
 
 /**
  * Content structure carried over from the StageHand theme.
@@ -54,10 +54,10 @@ require_once ARS_NOVA_CORE_DIR . 'includes/people.php';
 require_once ARS_NOVA_CORE_DIR . 'includes/people-rest.php';
 
 /**
- * Header cart subtotal (WEB-24). Adds the WooCommerce cart subtotal beside
- * Kadence's header cart icon — the free theme only offers an item-count
- * indicator. Additive: it appends its own element rather than replacing
- * Kadence's renderer. Guarded internally on WooCommerce being present.
+ * Cart total block (WEB-24). Registers [ans_cart_total] — the WooCommerce cart
+ * subtotal as a placeable block, dropped into Kadence's HTML / Mobile HTML
+ * header element by hand. Not auto-attached to anything. Guarded internally on
+ * WooCommerce being present.
  */
 require_once ARS_NOVA_CORE_DIR . 'includes/header-cart-subtotal.php';
 
