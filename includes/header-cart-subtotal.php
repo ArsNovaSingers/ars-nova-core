@@ -1,24 +1,32 @@
 <?php
 /**
- * Header cart subtotal — WEB-24.
+ * Cart total block — WEB-24.
  *
- * WHY THIS EXISTS
- * Kadence's free header cart element can show an item COUNT — the option is
- * `header_cart_show_total`, and despite the name its customizer label is
- * "Show Item Total Indicator" and it prints `get_cart_contents_count()`. There
- * is no subtotal/price feature anywhere in the theme (no `get_cart_subtotal`
- * call in `inc/template-functions/header-functions.php`), and no filter inside
- * `Kadence\header_cart()` to hook.
+ * WHAT THIS IS
+ * A `[ans_cart_total]` shortcode that renders the WooCommerce cart subtotal,
+ * refreshed over AJAX. It is NOT attached to anything — you place it yourself.
  *
- * WHY IT'S ADDITIVE RATHER THAN A REPLACEMENT
- * The obvious route — `remove_action( 'kadence_header_cart', ... )` and
- * reimplement — means duplicating Kadence's three style branches (link / slide /
- * dropdown) and its exact class names. That copy would drift silently on every
- * Kadence update and take the whole cart with it. Instead this appends its own
- * element after Kadence's at priority 20, and registers it as a WooCommerce
- * fragment so it refreshes over AJAX the same way the count does. If Kadence
- * changes its markup, this keeps working. If this file is deleted, the stock
- * cart is untouched.
+ * HOW TO PLACE IT IN THE HEADER
+ * Appearance > Customize > Header, drag in the "HTML" element (desktop) or
+ * "Mobile HTML" element (tablet/mobile), then put this in the content field:
+ *
+ *     [ans_cart_total]
+ *
+ * Kadence's `header_html()` and `mobile_html()` both call `do_shortcode()` on
+ * every branch (see kadence/inc/template-functions/header-functions.php), so
+ * shortcodes in those fields execute. The field sanitizes with `wp_kses_post`,
+ * which leaves shortcode brackets intact.
+ *
+ * WHY A SHORTCODE AND NOT RAW HTML
+ * The value has to be computed per request and updated when the cart changes.
+ * Static HTML pasted into the block would be a frozen number.
+ *
+ * WHY NOT ATTACHED TO THE CART ELEMENT
+ * It was, in 1.4.0–1.4.1, hooked onto `kadence_header_cart` at priority 20.
+ * That forced it to sit immediately after the cart icon and nowhere else.
+ * Making it placeable is both more flexible and the general pattern for adding
+ * anything custom to a Kadence header: expose a shortcode from a plugin, then
+ * drop Kadence's HTML element wherever you want it.
  *
  * @package ars-nova-core
  * @since   1.4.0
@@ -29,8 +37,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Whether the subtotal can render. WC()->cart is null on REST/cron and early
- * in the request, so check the object, not just the class.
+ * Whether the total can render. WC()->cart is null on REST/cron and early in
+ * the request, so check the object, not just the class.
  *
  * @return bool
  */
@@ -39,44 +47,77 @@ function arsnova_cart_subtotal_available() {
 }
 
 /**
- * The subtotal markup.
+ * The markup.
  *
  * Also used verbatim as the AJAX fragment payload, so the outer element and its
  * class MUST stay identical in both paths — WooCommerce replaces the element
  * matching the fragment's selector key with this string.
  *
+ * @param array $atts Shortcode attributes.
  * @return string
  */
-function arsnova_cart_subtotal_markup() {
+function arsnova_cart_subtotal_markup( $atts = array() ) {
 	if ( ! arsnova_cart_subtotal_available() ) {
 		return '';
 	}
 
+	$atts = shortcode_atts(
+		array(
+			'prefix'     => '',
+			'suffix'     => '',
+			'hide_empty' => 'no',
+		),
+		$atts,
+		'ans_cart_total'
+	);
+
+	$count    = WC()->cart->get_cart_contents_count();
+	$is_empty = 0 === $count;
+
+	if ( $is_empty && 'yes' === $atts['hide_empty'] ) {
+		// Still emit the element so the AJAX fragment has something to replace.
+		return '<a class="ans-cart-subtotal ans-cart-subtotal--empty ans-cart-subtotal--hidden" href="' . esc_url( wc_get_cart_url() ) . '" aria-hidden="true"></a>';
+	}
+
 	// get_cart_subtotal() returns formatted, already-escaped price HTML.
 	$subtotal = WC()->cart->get_cart_subtotal();
-	$is_empty = 0 === WC()->cart->get_cart_contents_count();
 
 	ob_start();
 	?>
 	<a class="ans-cart-subtotal<?php echo $is_empty ? ' ans-cart-subtotal--empty' : ''; ?>"
 		href="<?php echo esc_url( wc_get_cart_url() ); ?>"
 		aria-label="<?php esc_attr_e( 'View cart', 'ars-nova-core' ); ?>">
-		<?php echo wp_kses_post( $subtotal ); ?>
+		<?php
+		if ( '' !== $atts['prefix'] ) {
+			echo '<span class="ans-cart-subtotal__prefix">' . esc_html( $atts['prefix'] ) . '</span>';
+		}
+		echo wp_kses_post( $subtotal );
+		if ( '' !== $atts['suffix'] ) {
+			echo '<span class="ans-cart-subtotal__suffix">' . esc_html( $atts['suffix'] ) . '</span>';
+		}
+		?>
 	</a>
 	<?php
 	return trim( ob_get_clean() );
 }
 
 /**
- * Render immediately after Kadence's own cart element. Kadence hooks its
- * renderer at the default priority 10; 20 puts us to the right of the icon.
+ * [ans_cart_total] — the placeable block.
+ *
+ * @param array $atts Attributes.
+ * @return string
  */
-function arsnova_render_cart_subtotal() {
-	// Assembled and escaped in arsnova_cart_subtotal_markup().
-	echo arsnova_cart_subtotal_markup(); // phpcs:ignore WordPress.Security.EscapingOutput
+function arsnova_cart_total_shortcode( $atts ) {
+	return arsnova_cart_subtotal_markup( is_array( $atts ) ? $atts : array() );
 }
-add_action( 'kadence_header_cart', 'arsnova_render_cart_subtotal', 20 );
-add_action( 'kadence_mobile_cart', 'arsnova_render_cart_subtotal', 20 );
+add_shortcode( 'ans_cart_total', 'arsnova_cart_total_shortcode' );
+
+/*
+ * NOTE: as of 1.5.0 there are deliberately NO add_action() calls on
+ * kadence_header_cart / kadence_mobile_cart. The total is placed by hand via
+ * Kadence's HTML element. Re-adding an auto-attach here would put it back in
+ * two places at once.
+ */
 
 /**
  * Keep it live without a page reload. Woo swaps the element matching the key.
@@ -95,16 +136,9 @@ add_filter( 'woocommerce_add_to_cart_fragments', 'arsnova_cart_subtotal_fragment
 /**
  * Minimal presentation, inline and self-contained.
  *
- * Deliberately NOT in ans-site-css: if this file is removed the feature should
- * leave nothing behind. Inherits color from the header so it tracks whatever
- * the Customizer sets rather than hardcoding navy.
- *
- * Renders at ALL widths as of 1.4.1. The earlier `display:none` below 768px was
- * justified in a comment claiming the cart element had crowded the mobile
- * hamburger off the header — that was never observed and was not true. The
- * hamburger was missing because `header_mobile_items` held the invalid element
- * key `mobile-toggle` instead of `popup-toggle`; Kadence silently skips keys it
- * does not recognise. Nothing about the cart was ever involved.
+ * Colour is inherited, so it tracks whatever the Customizer sets for the
+ * surrounding header element rather than hardcoding navy. Size is inherited too
+ * — set it on the HTML element's Font control in the Customizer.
  */
 function arsnova_cart_subtotal_styles() {
 	if ( ! arsnova_cart_subtotal_available() ) {
@@ -115,8 +149,7 @@ function arsnova_cart_subtotal_styles() {
 	.ans-cart-subtotal {
 		display: inline-flex;
 		align-items: center;
-		margin-left: 0.15em;
-		font-size: 0.95em;
+		gap: 0.25em;
 		line-height: 1;
 		color: inherit;
 		text-decoration: none;
@@ -129,6 +162,9 @@ function arsnova_cart_subtotal_styles() {
 	}
 	.ans-cart-subtotal .woocommerce-Price-currencySymbol {
 		margin-right: 0.05em;
+	}
+	.ans-cart-subtotal--hidden {
+		display: none;
 	}
 	';
 
