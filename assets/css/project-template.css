@@ -308,5 +308,5 @@
 .ans-project-template #tickets button,
 .ans-project-template #tickets input[type="submit"],
 .ans-project-template #tickets .wp-element-button {
-	color: revert !important;
+	color: #fff !important;
 }
