@@ -255,3 +255,58 @@
 		background-attachment: scroll !important;
 	}
 }
+
+/* ---------------------------------------------------------------------------
+ * TICKETS BAND (#tickets)
+ *
+ * This band still lives in each page's block content — it has to, because its
+ * ticket rows are per-performance. But its COLOURS are shared, so they are
+ * governed here rather than seven times over.
+ *
+ * WHY !important IS USED HERE, AND ONLY HERE.
+ * The block markup carries the old colours two different ways: the six concert
+ * pages use a Kadence palette CLASS (has-theme-palette-9-background-color),
+ * while House Concert 6488 has background-color INLINE on the group and navy
+ * INLINE on every heading. An inline style cannot be beaten by specificity —
+ * only by !important — and rewriting the block markup on all seven pages is
+ * exactly the per-page churn this template exists to eliminate. So the cascade
+ * is overridden deliberately.
+ *
+ * This also retires a palette violation: 6488's band was a GOLD background
+ * fill, and gold is a text/accent colour only (confirmed 2026-08-07).
+ *
+ * Buttons are excluded from the text-colour rules so Tickera's own
+ * "Add to cart" control keeps its label.
+ * ------------------------------------------------------------------------- */
+
+.ans-project-template #tickets {
+	background-color: var(--ansp-navy) !important;
+	color: #fff !important;
+}
+
+.ans-project-template #tickets h2,
+.ans-project-template #tickets h3,
+.ans-project-template #tickets h4,
+.ans-project-template #tickets p,
+.ans-project-template #tickets li,
+.ans-project-template #tickets th,
+.ans-project-template #tickets td,
+.ans-project-template #tickets strong,
+.ans-project-template #tickets em {
+	color: #fff !important;
+}
+
+/* Table chrome needs to read against navy rather than against gold/white. */
+.ans-project-template #tickets table,
+.ans-project-template #tickets th,
+.ans-project-template #tickets td {
+	border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* Leave every button alone — Tickera's add-to-cart control styles itself. */
+.ans-project-template #tickets a.button,
+.ans-project-template #tickets button,
+.ans-project-template #tickets input[type="submit"],
+.ans-project-template #tickets .wp-element-button {
+	color: revert !important;
+}
