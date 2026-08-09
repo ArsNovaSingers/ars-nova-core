@@ -3,7 +3,7 @@
  * Plugin Name:       Ars Nova Core
  * Plugin URI:        https://arsnovasingers.org
  * Description:       Site-specific content structure for Ars Nova Singers — custom post types (Productions, People, Callouts), the ACF options page, ACF field groups, image sizes, and plugin-registered page templates. Kept in a plugin (not the theme) so the site's data layer survives any theme change (StageHand → Kadence). Content registrations lifted verbatim from the StageHand theme.
- * Version:           1.5.0
+ * Version:           1.6.0
  * Author:            Ars Nova Singers
  * Author URI:        https://arsnovasingers.org
  * License:           GPL-2.0-or-later
@@ -22,7 +22,7 @@ define( 'ARS_NOVA_CORE_DIR', plugin_dir_path( __FILE__ ) );
  * see claude/plugins/Ars_Nova_Plugin_Build_Rules.md rule 2. Added in 1.4.0;
  * before that the plugin had no internal version constant at all.
  */
-define( 'ARS_NOVA_CORE_VERSION', '1.5.0' );
+define( 'ARS_NOVA_CORE_VERSION', '1.6.0' );
 
 /**
  * Content structure carried over from the StageHand theme.
@@ -37,6 +37,14 @@ require_once ARS_NOVA_CORE_DIR . 'includes/image-sizes.php';
  * survive a theme change for the same reason the CPTs above do.
  */
 require_once ARS_NOVA_CORE_DIR . 'includes/page-templates.php';
+
+/**
+ * Project Template — the shared hero + Support band for every concert /
+ * residency page, plus its scoped stylesheet. Depends on page-templates.php
+ * being loaded FIRST: it reuses arsnova_season_template_meta() for the four
+ * forced Kadence settings rather than duplicating them.
+ */
+require_once ARS_NOVA_CORE_DIR . 'includes/project-template.php';
 
 /**
  * People: the `ans_people_group` taxonomy (leadership / board), the per-person
