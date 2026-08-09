@@ -1,0 +1,257 @@
+/**
+ * Project Template — scoped styles.
+ *
+ * Everything here is scoped under .ans-project-template (the body class added
+ * by includes/project-template.php) so nothing can leak onto another page.
+ *
+ * BREAKPOINTS. These are this site's REAL edges, read from Kadence's own CSS
+ * rather than assumed — see claude/website/HANDOFF.md:
+ *   1025px  desktop <-> mobile header swap (#main-header vs #mobile-header)
+ *    719px  Kadence's layout mobile edge
+ * Note the 720-767px band, where layout is in "desktop" mode while grid column
+ * systems are still mobile. Test there specifically; it is the one that bites.
+ *
+ * PALETTE (confirmed 2026-08-07). Gold is a TEXT/ACCENT colour only and must
+ * never be a background fill. Section backgrounds are white and navy only;
+ * river teal is a minor accent. The Support band's teal is that accent.
+ */
+
+.ans-project-template {
+	--ansp-navy: #0e1b3a;
+	--ansp-gold: #c7a24a;
+	--ansp-gold-light: #d8b25e;
+	--ansp-cream: #f5f1e8;
+	--ansp-teal: #16423e;
+	--ansp-hero-height: 660px;
+	--ansp-hero-overlay: 0.72;
+}
+
+/* ---------------------------------------------------------------------------
+ * HERO
+ * ------------------------------------------------------------------------- */
+
+.ans-project-template .ansp-hero {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: var(--ansp-hero-height);
+	padding: 40px 24px;
+	overflow: hidden;
+	background-color: var(--ansp-navy); /* Fallback + the no-image case. */
+}
+
+.ans-project-template .ansp-hero__media {
+	position: absolute;
+	inset: 0;
+	background-position: center center;
+	background-repeat: no-repeat;
+	background-size: cover;
+}
+
+/**
+ * Parallax is DESKTOP ONLY, by design. background-attachment: fixed is ignored
+ * or janky on iOS and most mobile browsers, and it also makes the browser
+ * ignore focalPoint entirely (the reason the 2026-08-09 hero conversion could
+ * only centre-crop). Below the header swap we drop to a normal scrolling
+ * background, which restores sane cropping on the screens that need it most.
+ */
+@media (min-width: 1025px) {
+	.ans-project-template .ansp-hero--has-image .ansp-hero__media {
+		background-attachment: fixed;
+	}
+}
+
+.ans-project-template .ansp-hero__overlay {
+	position: absolute;
+	inset: 0;
+	background-color: var(--ansp-navy);
+	opacity: var(--ansp-hero-overlay);
+}
+
+.ans-project-template .ansp-hero__inner {
+	position: relative; /* Above media + overlay. */
+	z-index: 1;
+	width: 100%;
+	max-width: 820px;
+	margin: 0 auto;
+	text-align: center;
+}
+
+.ans-project-template .ansp-hero__eyebrow {
+	margin: 0 0 18px;
+	color: var(--ansp-gold-light);
+	font-size: 14px;
+	letter-spacing: 3px;
+	text-transform: uppercase;
+}
+
+.ans-project-template .ansp-hero__title {
+	margin: 0;
+	color: #fff;
+	font-size: 78px;
+	font-weight: 700;
+	line-height: 1.02;
+}
+
+.ans-project-template .ansp-hero__subhead {
+	margin: 22px 0 0;
+	color: #e7ebf3;
+	font-size: 19px;
+	letter-spacing: 1px;
+	line-height: 1.5;
+}
+
+.ans-project-template .ansp-hero__actions {
+	margin: 34px 0 0;
+}
+
+.ans-project-template .ansp-hero__cta,
+.ans-project-template .ansp-support__cta {
+	display: inline-block;
+	padding: 16px 40px;
+	border-radius: 40px;
+	font-size: 15px;
+	font-weight: 700;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	text-decoration: none;
+	transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.ans-project-template .ansp-hero__cta {
+	background-color: var(--ansp-gold);
+	color: var(--ansp-navy);
+}
+
+.ans-project-template .ansp-hero__cta:hover,
+.ans-project-template .ansp-hero__cta:focus {
+	background-color: #fff;
+	color: var(--ansp-navy);
+}
+
+/* Tablet / small-desktop band. */
+@media (max-width: 1024px) {
+	.ans-project-template {
+		--ansp-hero-height: 520px;
+	}
+
+	.ans-project-template .ansp-hero__title {
+		font-size: 56px;
+	}
+
+	.ans-project-template .ansp-hero__subhead {
+		font-size: 18px;
+	}
+}
+
+/* Kadence's mobile edge. */
+@media (max-width: 719px) {
+	.ans-project-template {
+		--ansp-hero-height: 420px;
+	}
+
+	.ans-project-template .ansp-hero {
+		padding: 32px 20px;
+	}
+
+	.ans-project-template .ansp-hero__title {
+		font-size: 38px;
+		line-height: 1.08;
+	}
+
+	.ans-project-template .ansp-hero__eyebrow {
+		font-size: 12px;
+		letter-spacing: 2px;
+	}
+
+	.ans-project-template .ansp-hero__subhead {
+		font-size: 16px;
+		letter-spacing: 0;
+	}
+
+	.ans-project-template .ansp-hero__cta,
+	.ans-project-template .ansp-support__cta {
+		padding: 14px 30px;
+		font-size: 14px;
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * SUPPORT BAND
+ * ------------------------------------------------------------------------- */
+
+.ans-project-template .ansp-support {
+	padding: 92px 24px;
+	background-color: var(--ansp-teal);
+	color: var(--ansp-cream);
+	text-align: center;
+}
+
+.ans-project-template .ansp-support__inner {
+	max-width: 780px;
+	margin: 0 auto;
+}
+
+.ans-project-template .ansp-support__title {
+	margin: 0;
+	color: var(--ansp-cream);
+	font-size: 44px;
+	font-weight: 700;
+}
+
+.ans-project-template .ansp-support__body {
+	margin: 20px 0 0;
+	color: var(--ansp-cream);
+	font-size: 18px;
+	line-height: 1.7;
+}
+
+.ans-project-template .ansp-support__actions {
+	margin: 32px 0 0;
+}
+
+.ans-project-template .ansp-support__cta {
+	background-color: var(--ansp-cream);
+	color: var(--ansp-teal);
+}
+
+.ans-project-template .ansp-support__cta:hover,
+.ans-project-template .ansp-support__cta:focus {
+	background-color: #fff;
+	color: var(--ansp-teal);
+}
+
+@media (max-width: 1024px) {
+	.ans-project-template .ansp-support {
+		padding: 72px 24px;
+	}
+
+	.ans-project-template .ansp-support__title {
+		font-size: 36px;
+	}
+}
+
+@media (max-width: 719px) {
+	.ans-project-template .ansp-support {
+		padding: 56px 20px;
+	}
+
+	.ans-project-template .ansp-support__title {
+		font-size: 30px;
+	}
+
+	.ans-project-template .ansp-support__body {
+		font-size: 16px;
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * ACCESSIBILITY
+ * ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+	.ans-project-template .ansp-hero__media {
+		background-attachment: scroll !important;
+	}
+}
