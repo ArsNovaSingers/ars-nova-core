@@ -5,8 +5,9 @@
  * Registers REST routes (ars-nova/v1/font-vote/*) that persist the option
  * list and each team member's rank vote in a single wp_option row, and the
  * [ans_font_vote] shortcode that renders the review page: a live hero/body
- * preview, a random-pairing generator, per-card delete, and a per-person
- * rank + weighted tally panel.
+ * preview, a random-pairing generator, per-card delete + rename, cards
+ * auto-sorted by the weighted tally with a "Current leader" badge on the
+ * top pairing, and a per-person rank + weighted tally panel.
  *
  * Grew out of the Website branch font discussion in the "Website inspiration
  * hunt" email thread (Jul 2026) — see claude/website/HANDOFF.md.
@@ -177,6 +178,19 @@ function arsnova_core_register_font_vote_routes() {
 
 	register_rest_route(
 		'ars-nova/v1',
+		'/font-vote/options/(?P<id>[\w-]+)',
+		array(
+			'methods'             => WP_REST_Server::EDITABLE,
+			'callback'            => 'arsnova_core_font_vote_rename_option_cb',
+			'permission_callback' => '__return_true',
+			'args'                => array(
+				'name' => array( 'required' => true, 'type' => 'string' ),
+			),
+		)
+	);
+
+	register_rest_route(
+		'ars-nova/v1',
 		'/font-vote/vote',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
@@ -287,6 +301,53 @@ function arsnova_core_font_vote_delete_option_cb( $request ) {
 }
 
 /**
+ * PUT/PATCH /font-vote/options/{id} — rename a pairing. The fixed baseline
+ * card (deletable=false) is protected server-side, matching the delete
+ * protection above.
+ *
+ * @param WP_REST_Request $request Request.
+ * @return WP_REST_Response|WP_Error
+ */
+function arsnova_core_font_vote_rename_option_cb( $request ) {
+	$id   = sanitize_text_field( (string) $request->get_param( 'id' ) );
+	$name = trim( sanitize_text_field( (string) $request->get_param( 'name' ) ) );
+
+	if ( '' === $name ) {
+		return new WP_Error( 'ans_font_vote_bad_name', 'Name cannot be empty.', array( 'status' => 400 ) );
+	}
+
+	$state = arsnova_core_font_vote_get_state();
+	$found = false;
+
+	foreach ( $state['options'] as &$opt ) {
+		if ( $opt['id'] === $id ) {
+			if ( empty( $opt['deletable'] ) ) {
+				return new WP_Error( 'ans_font_vote_locked', 'This option is fixed and cannot be renamed.', array( 'status' => 403 ) );
+			}
+			$opt['name'] = $name;
+			$found       = true;
+			break;
+		}
+	}
+	unset( $opt );
+
+	if ( ! $found ) {
+		return new WP_Error( 'ans_font_vote_bad_option', 'Unknown option.', array( 'status' => 404 ) );
+	}
+
+	arsnova_core_font_vote_save_state( $state );
+
+	return new WP_REST_Response(
+		array(
+			'team'    => arsnova_core_font_vote_team(),
+			'options' => array_values( $state['options'] ),
+			'votes'   => $state['votes'],
+		),
+		200
+	);
+}
+
+/**
  * POST /font-vote/vote — set or clear one person's rank for one option.
  *
  * @param WP_REST_Request $request Request.
@@ -376,8 +437,15 @@ function arsnova_core_font_vote_shortcode() {
 #ans-font-vote-root .card{position:relative;background:#fff;border:1px solid #e7e1d1;border-radius:12px;padding:24px 22px;display:flex;flex-direction:column;gap:12px;}
 #ans-font-vote-root .card .del-btn{position:absolute;top:10px;right:10px;width:23px;height:23px;border-radius:50%;border:1px solid #e2dac4;background:#fff;color:#a6493f;font-size:14px;line-height:1;cursor:pointer;}
 #ans-font-vote-root .card .del-btn:hover{background:#a6493f;color:#fff;border-color:#a6493f;}
+#ans-font-vote-root .card .rename-btn{position:absolute;top:10px;right:39px;width:23px;height:23px;border-radius:50%;border:1px solid #e2dac4;background:#fff;color:var(--anfv-navy);font-size:12px;line-height:1;cursor:pointer;}
+#ans-font-vote-root .card .rename-btn:hover{background:var(--anfv-navy);color:#fff;border-color:var(--anfv-navy);}
+#ans-font-vote-root .card.is-leader{border-color:var(--anfv-gold);box-shadow:0 0 0 2px rgba(199,162,74,.28);}
+#ans-font-vote-root .card .card-top-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-right:56px;}
+#ans-font-vote-root .card .rank-badge{font-size:10.5px;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--anfv-cream);color:var(--anfv-navy);border:1px solid #e2dac4;white-space:nowrap;}
+#ans-font-vote-root .card .rank-badge.leader{background:var(--anfv-gold);border-color:var(--anfv-gold);color:var(--anfv-navy);}
 #ans-font-vote-root .card .tag{align-self:flex-start;font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;padding:4px 9px;border-radius:999px;background:var(--anfv-cream);color:var(--anfv-navy);border:1px solid #e2dac4;}
-#ans-font-vote-root .card .opt-name{font-size:14.5px;font-weight:700;color:var(--anfv-navy);margin:0;padding-right:18px;}
+#ans-font-vote-root .card .leader-line{font-size:12px;font-weight:700;color:#9a7a2e;margin:-4px 0 2px;}
+#ans-font-vote-root .card .opt-name{font-size:14.5px;font-weight:700;color:var(--anfv-navy);margin:0;padding-right:40px;}
 #ans-font-vote-root .card .rationale{font-size:12.5px;color:#5c6170;line-height:1.5;margin:0;}
 #ans-font-vote-root .card .sample-head{font-size:24px;line-height:1.15;color:var(--anfv-navy);margin:2px 0;}
 #ans-font-vote-root .card .sample-body{font-size:14px;line-height:1.6;color:#333743;margin:0;}
@@ -448,6 +516,7 @@ CSS;
   const statusLine = root.querySelector('#anfv-status');
 
   function setStatus(msg){ if (statusLine) statusLine.textContent = msg; }
+  function escAttr(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
   async function api(path, opts){
     const res = await fetch(REST_BASE + path, Object.assign({headers:{'Content-Type':'application/json'}}, opts || {}));
@@ -513,6 +582,36 @@ CSS;
     catch (e) { setStatus('Could not delete that — try again.'); }
   }
 
+  async function renameOption(id, currentName){
+    const next = window.prompt('Rename this pairing:', currentName || '');
+    if (next === null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === currentName) return;
+    setStatus('Renaming...');
+    try {
+      await api('options/' + encodeURIComponent(id), {method:'PUT', body: JSON.stringify({name: trimmed})});
+      await loadState(true);
+    } catch (e) { setStatus('Could not rename that — try again.'); }
+  }
+
+  function computeTally(){
+    const n = OPTIONS.length;
+    const scores = {}; const firstPlace = {};
+    OPTIONS.forEach(o => { scores[o.id] = 0; firstPlace[o.id] = 0; });
+    let anyVotes = false;
+    TEAM.forEach(person => {
+      const personVotes = VOTES[person] || {};
+      Object.entries(personVotes).forEach(([optId, rank]) => {
+        if (!(optId in scores)) return;
+        anyVotes = true;
+        scores[optId] += (n - rank + 1);
+        if (rank === 1) firstPlace[optId] += 1;
+      });
+    });
+    const ranked = OPTIONS.slice().sort((a,b) => scores[b.id] - scores[a.id]);
+    return { scores, firstPlace, anyVotes, ranked };
+  }
+
   async function castVote(person, optionId, rank){
     try { await api('vote', {method:'POST', body: JSON.stringify({person, option_id: optionId, rank: rank || ''})}); await loadState(true); }
     catch (e) { setStatus('Could not save that vote — try again.'); }
@@ -530,14 +629,23 @@ CSS;
   }
 
   function renderCards(){
+    const { scores, firstPlace, anyVotes, ranked } = computeTally();
+    const order = anyVotes ? ranked : OPTIONS;
     cardGrid.innerHTML = '';
-    OPTIONS.forEach(opt => {
+    order.forEach((opt, idx) => {
+      const rank = idx + 1;
+      const isLeader = anyVotes && idx === 0 && scores[opt.id] > 0;
       const card = document.createElement('div');
-      card.className = 'card';
+      card.className = 'card' + (isLeader ? ' is-leader' : '');
       card.innerHTML = `
         ${opt.deletable ? `<button class="del-btn" title="Delete this option" data-id="${opt.id}">×</button>` : ''}
-        <span class="tag">${opt.tag}</span>
+        ${opt.deletable ? `<button class="rename-btn" title="Rename this pairing" data-id="${opt.id}" data-name="${escAttr(opt.name)}">✎</button>` : ''}
+        <div class="card-top-row">
+          ${anyVotes ? `<span class="rank-badge${isLeader ? ' leader' : ''}">${isLeader ? '★ Leading' : '#' + rank}</span>` : ''}
+          <span class="tag">${opt.tag}</span>
+        </div>
         <p class="opt-name">${opt.name}</p>
+        ${isLeader ? `<p class="leader-line">Current leader — ${scores[opt.id]} pt${scores[opt.id] === 1 ? '' : 's'}${firstPlace[opt.id] ? ' · ' + firstPlace[opt.id] + ' first-place vote' + (firstPlace[opt.id] > 1 ? 's' : '') : ''}</p>` : ''}
         <p class="rationale">${opt.rationale}</p>
         <div class="sample-head" style="font-family:${opt.headingFont}; font-weight:${opt.headingWeight};">Rivers &amp; Streams</div>
         <p class="sample-body" style="font-family:${opt.bodyFont}; font-weight:${opt.bodyWeight};">Rivers have always carried more than water — they carry memory, boundary, and passage across five centuries of choral writing.</p>
@@ -547,6 +655,9 @@ CSS;
     });
     cardGrid.querySelectorAll('.del-btn').forEach(btn => {
       btn.addEventListener('click', () => deleteOption(btn.dataset.id));
+    });
+    cardGrid.querySelectorAll('.rename-btn').forEach(btn => {
+      btn.addEventListener('click', () => renameOption(btn.dataset.id, btn.dataset.name));
     });
   }
 
@@ -584,29 +695,16 @@ CSS;
   }
 
   function renderTally(){
-    const n = OPTIONS.length;
-    const scores = {}; const firstPlace = {};
-    OPTIONS.forEach(o => { scores[o.id] = 0; firstPlace[o.id] = 0; });
-    let anyVotes = false;
-    TEAM.forEach(person => {
-      const personVotes = VOTES[person] || {};
-      Object.entries(personVotes).forEach(([optId, rank]) => {
-        if (!(optId in scores)) return;
-        anyVotes = true;
-        scores[optId] += (n - rank + 1);
-        if (rank === 1) firstPlace[optId] += 1;
-      });
-    });
+    const { scores, firstPlace, anyVotes, ranked } = computeTally();
     if (!anyVotes){
       tallyBlock.innerHTML = '<p class="tally-empty">No votes yet — pick a person above and rank the options.</p>';
       return;
     }
     const maxScore = Math.max(...Object.values(scores), 1);
-    const ranked = OPTIONS.slice().sort((a,b) => scores[b.id] - scores[a.id]);
-    tallyBlock.innerHTML = ranked.map(o => `
+    tallyBlock.innerHTML = ranked.map((o, i) => `
       <div class="tally-row">
         <div class="tr-top">
-          <span class="opt-name-small">${o.tag === 'Random Pairing' ? o.name : o.tag + ' — ' + o.name}</span>
+          <span class="opt-name-small">#${i + 1} · ${o.tag === 'Random Pairing' ? o.name : o.tag + ' — ' + o.name}</span>
           <span class="score">${scores[o.id]} pts${firstPlace[o.id] ? ' · ' + firstPlace[o.id] + ' first-place vote' + (firstPlace[o.id] > 1 ? 's' : '') : ''}</span>
         </div>
         <div class="tally-bar-bg"><div class="tally-bar-fill" style="width:${(scores[o.id]/maxScore*100).toFixed(0)}%"></div></div>
