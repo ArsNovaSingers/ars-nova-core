@@ -191,6 +191,16 @@ function arsnova_core_register_font_vote_routes() {
 
 	register_rest_route(
 		'ars-nova/v1',
+		'/font-vote/fonts',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => 'arsnova_core_font_vote_fonts_cb',
+			'permission_callback' => '__return_true',
+		)
+	);
+
+	register_rest_route(
+		'ars-nova/v1',
 		'/font-vote/vote',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
@@ -390,6 +400,28 @@ function arsnova_core_font_vote_vote_cb( $request ) {
 }
 
 /**
+ * GET /font-vote/fonts — the Google Fonts family list the picker is built on.
+ *
+ * Cached server-side (see includes/font-catalog.php), so this is cheap enough
+ * to hit on every page load. Public for the same reason the rest of these
+ * routes are: the page has no login.
+ *
+ * @return WP_REST_Response
+ */
+function arsnova_core_font_vote_fonts_cb() {
+	$catalog = arsnova_core_fonts_catalog();
+
+	return new WP_REST_Response(
+		array(
+			'source' => $catalog['source'],
+			'count'  => $catalog['count'],
+			'fonts'  => $catalog['fonts'],
+		),
+		200
+	);
+}
+
+/**
  * `[ans_font_vote]` — render the typography review page.
  *
  * @return string
@@ -397,7 +429,13 @@ function arsnova_core_font_vote_vote_cb( $request ) {
 function arsnova_core_font_vote_shortcode() {
 	$rest_base = esc_url_raw( rest_url( 'ars-nova/v1/font-vote/' ) );
 
-	$fonts_href = 'https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&family=EB+Garamond:wght@400;500;600&family=Playfair+Display:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=DM+Serif+Display:wght@400&family=Spectral:wght@400;500;600;700&family=Prata:wght@400&family=Sora:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=Newsreader:wght@400;500;600;700&family=Nunito+Sans:wght@400;500;600;700&family=Karla:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap';
+	/*
+	 * Only the page's own UI font is loaded up front. Every pairing font —
+	 * including the four seeded options — is fetched on demand by the JS
+	 * loader below, which is what makes a 1,800-family picker viable: the
+	 * browser never asks Google for a face nobody is looking at.
+	 */
+	$fonts_href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
 
 	$css = <<<'CSS'
 #ans-font-vote-root{
@@ -473,6 +511,29 @@ function arsnova_core_font_vote_shortcode() {
 #ans-font-vote-root .custom-form .cf-cancel{appearance:none;border:1px solid #d8d2c2;background:#fff;color:#6b7080;padding:9px 16px;border-radius:6px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
 #ans-font-vote-root .custom-form .cf-cancel:hover{border-color:#a6493f;color:#a6493f;}
 #ans-font-vote-root .other-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
+#ans-font-vote-root .fp{position:relative;}
+#ans-font-vote-root .fp-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:inherit;font-size:13px;padding:8px 10px;border-radius:6px;border:1px solid #d8d2c2;background:#fff;color:var(--anfv-ink);cursor:pointer;text-align:left;}
+#ans-font-vote-root .fp-trigger:hover{border-color:var(--anfv-gold);}
+#ans-font-vote-root .fp.is-open .fp-trigger{border-color:var(--anfv-navy);}
+#ans-font-vote-root .fp-trigger-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;}
+#ans-font-vote-root .fp-trigger-caret{color:#8a8f9c;font-size:10px;flex:none;}
+#ans-font-vote-root .fp-panel{position:absolute;z-index:40;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid #d8d2c2;border-radius:8px;box-shadow:0 12px 28px rgba(14,27,58,.16);padding:10px;display:flex;flex-direction:column;gap:8px;}
+#ans-font-vote-root .fp-search{font-family:inherit;font-size:13px;padding:7px 9px;border-radius:6px;border:1px solid #d8d2c2;background:#fff;color:var(--anfv-ink);width:100%;}
+#ans-font-vote-root .fp-cats{display:flex;flex-wrap:wrap;gap:5px;}
+#ans-font-vote-root .fp-cats button{appearance:none;border:1px solid #d8d2c2;background:#fff;color:var(--anfv-navy);padding:4px 9px;border-radius:999px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;}
+#ans-font-vote-root .fp-cats button.active{background:var(--anfv-navy);border-color:var(--anfv-navy);color:#fff;}
+#ans-font-vote-root .fp-list{max-height:290px;overflow-y:auto;display:flex;flex-direction:column;gap:1px;}
+#ans-font-vote-root .fp-row{appearance:none;border:0;border-radius:5px;background:transparent;cursor:pointer;text-align:left;padding:7px 9px;display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+#ans-font-vote-root .fp-row:hover{background:var(--anfv-cream);}
+#ans-font-vote-root .fp-row.active{background:var(--anfv-navy);}
+#ans-font-vote-root .fp-row.active .fp-row-name,#ans-font-vote-root .fp-row.active .fp-row-cat{color:#fff;}
+#ans-font-vote-root .fp-row-name{font-size:18px;line-height:1.3;color:var(--anfv-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#ans-font-vote-root .fp-row-cat{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#a4a8b4;flex:none;font-family:'Inter',Arial,sans-serif;}
+#ans-font-vote-root .fp-count{font-size:11px;color:#8a8f9c;margin:0;}
+#ans-font-vote-root .cf-preview{background:#fff;border:1px solid #e2dac4;border-radius:8px;padding:16px 18px;}
+#ans-font-vote-root .cf-preview .cfp-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--anfv-teal);margin-bottom:8px;font-family:'Inter',Arial,sans-serif;}
+#ans-font-vote-root .cf-preview .cfp-head{font-size:26px;line-height:1.15;color:var(--anfv-navy);margin-bottom:6px;}
+#ans-font-vote-root .cf-preview .cfp-body{font-size:14px;line-height:1.6;color:#333743;margin:0;}
 #ans-font-vote-root .vote-shell{background:#fff;border:1px solid #e7e1d1;border-radius:12px;padding:26px 26px 6px;margin-bottom:48px;}
 #ans-font-vote-root .person-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
 #ans-font-vote-root .person-tabs button{appearance:none;border:1px solid #d8d2c2;background:var(--anfv-cream);color:var(--anfv-navy);padding:8px 15px;border-radius:999px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
@@ -499,30 +560,89 @@ CSS;
 	$js = <<<'JS'
 (function(){
   const REST_BASE = '__ANS_FONT_VOTE_REST_BASE__';
-  const FONT_POOL_HEADINGS = [
-    {name:'Fraunces', stack:"'Fraunces', Georgia, serif"},
-    {name:'Cormorant Garamond', stack:"'Cormorant Garamond', Georgia, serif"},
-    {name:'Playfair Display', stack:"'Playfair Display', Georgia, serif"},
-    {name:'Libre Baskerville', stack:"'Libre Baskerville', Georgia, serif"},
-    {name:'DM Serif Display', stack:"'DM Serif Display', Georgia, serif"},
-    {name:'Spectral', stack:"'Spectral', Georgia, serif"},
-    {name:'Prata', stack:"'Prata', Georgia, serif"},
-    {name:'Work Sans', stack:"'Work Sans', Arial, sans-serif"},
-    {name:'Sora', stack:"'Sora', Arial, sans-serif"},
-    {name:'Outfit', stack:"'Outfit', Arial, sans-serif"}
-  ];
-  const FONT_POOL_BODY = [
-    {name:'Source Serif 4', stack:"'Source Serif 4', Georgia, serif"},
-    {name:'Lora', stack:"'Lora', Georgia, serif"},
-    {name:'EB Garamond', stack:"'EB Garamond', Georgia, serif"},
-    {name:'Newsreader', stack:"'Newsreader', Georgia, serif"},
-    {name:'Inter', stack:"'Inter', Arial, sans-serif"},
-    {name:'Manrope', stack:"'Manrope', Arial, sans-serif"},
-    {name:'Nunito Sans', stack:"'Nunito Sans', Arial, sans-serif"},
-    {name:'Karla', stack:"'Karla', Arial, sans-serif"},
-    {name:'Public Sans', stack:"'Public Sans', Arial, sans-serif"},
-    {name:'Work Sans', stack:"'Work Sans', Arial, sans-serif"}
-  ];
+  /*
+   * The font catalog, fetched once from our own /font-vote/fonts route. Every
+   * family in here is selectable; nothing about it is hardcoded on this side
+   * any more. See includes/font-catalog.php for where the list comes from.
+   */
+  let CATALOG = [];
+  let CATALOG_SOURCE = 'bundled';
+
+  // Never ask Google for these — they are local faces or CSS generic names.
+  const SYSTEM_FAMILIES = new Set(['georgia','times new roman','arial','helvetica',
+    'serif','sans-serif','monospace','cursive','system-ui','-apple-system','courier new',
+    'verdana','tahoma','trebuchet ms','palatino linotype','book antiqua','impact']);
+
+  const LOADED_FONTS = new Set();
+
+  function fallbackFor(category){
+    if (category === 'serif' || category === 'display') return 'Georgia, serif';
+    if (category === 'handwriting') return 'cursive';
+    if (category === 'monospace') return 'monospace';
+    return 'Arial, sans-serif';
+  }
+
+  function stackFor(entry){ return "'" + entry.family + "', " + fallbackFor(entry.category); }
+
+  // First family name out of a CSS font stack, unquoted.
+  function primaryFamily(stack){
+    const first = String(stack || '').split(',')[0].trim();
+    return first.replace(/^['"]|['"]$/g, '').trim();
+  }
+
+  /*
+   * Ask Google for one family, once. Weights are only named when the catalog
+   * actually told us which ones exist — requesting a weight a family doesn't
+   * have makes Google reject the whole stylesheet, so with no weight data we
+   * request the family bare, which is valid for every family.
+   */
+  function loadFont(family, weights){
+    if (!family) return;
+    const key = family.toLowerCase();
+    if (SYSTEM_FAMILIES.has(key) || LOADED_FONTS.has(key)) return;
+    LOADED_FONTS.add(key);
+    let spec = family.replace(/ /g, '+');
+    if (Array.isArray(weights) && weights.length) {
+      const wanted = weights.filter(w => [400,500,600,700].indexOf(Number(w)) !== -1);
+      if (wanted.length) spec += ':wght@' + wanted.join(';');
+    }
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=' + spec + '&display=swap';
+    document.head.appendChild(link);
+  }
+
+  function catalogEntry(family){
+    if (!family) return null;
+    const key = String(family).toLowerCase();
+    return CATALOG.find(f => f.family.toLowerCase() === key) || null;
+  }
+
+  // Load whatever a saved pairing needs, catalog member or not.
+  function loadFontsForOption(opt){
+    [opt.headingFont, opt.bodyFont].forEach(stack => {
+      const fam = primaryFamily(stack);
+      const entry = catalogEntry(fam);
+      loadFont(fam, entry ? entry.weights : []);
+    });
+  }
+
+  function headingWeightFor(entry){
+    const w = (entry && Array.isArray(entry.weights)) ? entry.weights.map(Number) : [];
+    if (w.indexOf(600) !== -1) return 600;
+    if (w.indexOf(700) !== -1) return 700;
+    if (w.indexOf(500) !== -1) return 500;
+    return w.length ? 400 : 600;
+  }
+
+  /*
+   * Random pairing stays inside serif/sans-serif and the popular end of the
+   * catalog (the API hands it back popularity-sorted), so "random" produces
+   * something plausible instead of a script face for body copy.
+   */
+  function randomPool(){
+    return CATALOG.filter(f => f.category === 'serif' || f.category === 'sans-serif').slice(0, 140);
+  }
 
   let OPTIONS = [];
   let VOTES = {};
@@ -556,6 +676,7 @@ CSS;
       TEAM = data.team || [];
       OPTIONS = data.options || [];
       VOTES = data.votes || {};
+      OPTIONS.forEach(loadFontsForOption);
       if (!activePerson || TEAM.indexOf(activePerson) === -1) activePerson = TEAM[0];
       if (!activeId || !OPTIONS.find(o => o.id === activeId)) activeId = OPTIONS.length ? OPTIONS[0].id : null;
       renderPicker(); renderPersonTabs(); renderCards(); renderTally();
@@ -569,6 +690,7 @@ CSS;
 
   function applyPreview(opt){
     activeId = opt.id;
+    loadFontsForOption(opt);
     const heading = root.querySelector('#anfv-pvHeadline');
     const eyebrow = root.querySelector('#anfv-pvEyebrow');
     const sub = root.querySelector('#anfv-pvSub');
@@ -584,29 +706,217 @@ CSS;
   }
 
   async function addRandomOption(){
-    const h = FONT_POOL_HEADINGS[Math.floor(Math.random() * FONT_POOL_HEADINGS.length)];
-    let b = FONT_POOL_BODY[Math.floor(Math.random() * FONT_POOL_BODY.length)];
+    const pool = randomPool();
+    if (pool.length < 2) { setStatus('Font list is still loading — try again in a moment.'); return; }
+    const h = pool[Math.floor(Math.random() * pool.length)];
+    let b = pool[Math.floor(Math.random() * pool.length)];
     let guard = 0;
-    while (b.name === h.name && guard < 8) { b = FONT_POOL_BODY[Math.floor(Math.random() * FONT_POOL_BODY.length)]; guard++; }
+    while (b.family === h.family && guard < 8) { b = pool[Math.floor(Math.random() * pool.length)]; guard++; }
     setStatus('Adding a random pairing...');
     try {
       const data = await api('options', {method:'POST', body: JSON.stringify({
-        tag: 'Random Pairing', name: h.name + ' / ' + b.name,
+        tag: 'Random Pairing', name: h.family + ' / ' + b.family,
         rationale: 'Randomly generated — keep it if it works, delete it if it doesn’t.',
-        headingFont: h.stack, headingWeight: 600, bodyFont: b.stack, bodyWeight: 400,
-        headingLabel: h.name, bodyLabel: b.name
+        headingFont: stackFor(h), headingWeight: headingWeightFor(h),
+        bodyFont: stackFor(b), bodyWeight: 400,
+        headingLabel: h.family, bodyLabel: b.family
       })});
       activeId = data.id;
       await loadState(true);
     } catch (e) { setStatus('Could not add that pairing — try again.'); }
   }
 
-  function populateFontSelects(){
-    const hSel = root.querySelector('#anfv-cfHeading');
-    const bSel = root.querySelector('#anfv-cfBody');
-    if (!hSel || !bSel) return;
-    hSel.innerHTML = FONT_POOL_HEADINGS.map((f, i) => `<option value="${i}">${f.name}</option>`).join('');
-    bSel.innerHTML = FONT_POOL_BODY.map((f, i) => `<option value="${i}">${f.name}</option>`).join('');
+  /*
+   * The font picker. This is a custom component rather than a <select> for one
+   * concrete reason: Chrome, Edge and Safari all ignore font-family on an
+   * <option>, so a native dropdown cannot show each font in its own face.
+   * Only Firefox honours it. Since the whole point is seeing the typeface,
+   * the native control had to go.
+   */
+  const CATEGORIES = [
+    {key:'', label:'All'},
+    {key:'serif', label:'Serif'},
+    {key:'sans-serif', label:'Sans'},
+    {key:'display', label:'Display'},
+    {key:'handwriting', label:'Script'},
+    {key:'monospace', label:'Mono'}
+  ];
+  const ROW_CAP = 300;
+  const PICKERS = {};
+
+  function catShort(cat){
+    if (cat === 'sans-serif') return 'sans';
+    if (cat === 'handwriting') return 'script';
+    return cat || '';
+  }
+
+  function makePicker(role, initialFamily){
+    const el = root.querySelector('#anfv-fp-' + role);
+    if (!el) return null;
+    const state = { role: role, el: el, family: initialFamily, cat: '', query: '', open: false };
+    el.innerHTML = `
+      <button type="button" class="fp-trigger">
+        <span class="fp-trigger-name"></span>
+        <span class="fp-trigger-caret">&#9660;</span>
+      </button>
+      <div class="fp-panel" style="display:none;">
+        <input type="search" class="fp-search" placeholder="Search fonts by name...">
+        <div class="fp-cats">${CATEGORIES.map(c => `<button type="button" data-cat="${c.key}" class="${c.key === '' ? 'active' : ''}">${c.label}</button>`).join('')}</div>
+        <div class="fp-list"></div>
+        <p class="fp-count"></p>
+      </div>
+    `;
+    state.trigger = el.querySelector('.fp-trigger');
+    state.triggerName = el.querySelector('.fp-trigger-name');
+    state.panel = el.querySelector('.fp-panel');
+    state.search = el.querySelector('.fp-search');
+    state.list = el.querySelector('.fp-list');
+    state.count = el.querySelector('.fp-count');
+
+    // Only fetch the faces actually scrolled into view inside this list.
+    if (typeof IntersectionObserver !== 'undefined') {
+      state.observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          const row = entry.target;
+          loadFont(row.dataset.family, rowWeights(row));
+          state.observer.unobserve(row);
+        });
+      }, { root: state.list, rootMargin: '150px' });
+    }
+
+    state.trigger.addEventListener('click', () => setPickerOpen(state, !state.open));
+    state.search.addEventListener('input', () => {
+      state.query = state.search.value.trim().toLowerCase();
+      renderPickerList(state);
+    });
+    el.querySelectorAll('.fp-cats button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.cat = btn.dataset.cat;
+        el.querySelectorAll('.fp-cats button').forEach(b => b.classList.toggle('active', b === btn));
+        renderPickerList(state);
+      });
+    });
+
+    PICKERS[role] = state;
+    syncPickerTrigger(state);
+    return state;
+  }
+
+  function rowWeights(row){
+    return row.dataset.weights ? row.dataset.weights.split(',').map(Number) : [];
+  }
+
+  function setPickerOpen(state, open){
+    state.open = open;
+    state.panel.style.display = open ? '' : 'none';
+    state.el.classList.toggle('is-open', open);
+    if (open) { renderPickerList(state); state.search.focus(); }
+  }
+
+  function filteredFonts(state){
+    return CATALOG.filter(f => {
+      if (state.cat && f.category !== state.cat) return false;
+      if (state.query && f.family.toLowerCase().indexOf(state.query) === -1) return false;
+      return true;
+    });
+  }
+
+  function renderPickerList(state){
+    const all = filteredFonts(state);
+    const shown = all.slice(0, ROW_CAP);
+    if (state.observer) state.observer.disconnect();
+    state.list.innerHTML = shown.map(f => `
+      <button type="button" class="fp-row${f.family === state.family ? ' active' : ''}" data-family="${escAttr(f.family)}" data-weights="${(f.weights || []).join(',')}">
+        <span class="fp-row-name" style="font-family:'${escAttr(f.family)}', ${fallbackFor(f.category)};">${escAttr(f.family)}</span>
+        <span class="fp-row-cat">${escAttr(catShort(f.category))}</span>
+      </button>
+    `).join('');
+    state.count.textContent = all.length > shown.length
+      ? 'Showing ' + shown.length + ' of ' + all.length + ' — type above to narrow the list.'
+      : all.length + (all.length === 1 ? ' font' : ' fonts');
+
+    const rows = state.list.querySelectorAll('.fp-row');
+    rows.forEach(row => {
+      row.addEventListener('click', () => {
+        state.family = row.dataset.family;
+        syncPickerTrigger(state);
+        setPickerOpen(state, false);
+        renderCustomPreview();
+      });
+      if (state.observer) state.observer.observe(row);
+    });
+    // No IntersectionObserver (very old browser): load the first screenful.
+    if (!state.observer) {
+      Array.prototype.slice.call(rows, 0, 60).forEach(row => loadFont(row.dataset.family, rowWeights(row)));
+    }
+  }
+
+  function syncPickerTrigger(state){
+    const entry = catalogEntry(state.family);
+    state.triggerName.textContent = state.family || 'Pick a font';
+    if (entry) {
+      state.triggerName.style.fontFamily = stackFor(entry);
+      loadFont(entry.family, entry.weights);
+    } else {
+      state.triggerName.style.fontFamily = '';
+    }
+  }
+
+  function renderCustomPreview(){
+    const head = root.querySelector('#anfv-cfPvHead');
+    const body = root.querySelector('#anfv-cfPvBody');
+    if (!head || !body) return;
+    const he = PICKERS.heading ? catalogEntry(PICKERS.heading.family) : null;
+    const be = PICKERS.body ? catalogEntry(PICKERS.body.family) : null;
+    if (he) {
+      loadFont(he.family, he.weights);
+      head.style.fontFamily = stackFor(he);
+      head.style.fontWeight = headingWeightFor(he);
+    }
+    if (be) {
+      loadFont(be.family, be.weights);
+      body.style.fontFamily = stackFor(be);
+      body.style.fontWeight = 400;
+    }
+  }
+
+  function initFontPickers(){
+    if (!CATALOG.length) return;
+    const firstOf = (wanted, fallbackIdx) => {
+      for (let i = 0; i < wanted.length; i++) { if (catalogEntry(wanted[i])) return wanted[i]; }
+      return CATALOG[fallbackIdx] ? CATALOG[fallbackIdx].family : CATALOG[0].family;
+    };
+    makePicker('heading', firstOf(['Fraunces', 'Playfair Display', 'Cormorant Garamond'], 0));
+    makePicker('body', firstOf(['Inter', 'Source Serif 4', 'Lora'], 1));
+    renderCustomPreview();
+  }
+
+  // Click anywhere else and any open panel closes.
+  document.addEventListener('click', function (ev) {
+    Object.keys(PICKERS).forEach(function (role) {
+      const state = PICKERS[role];
+      if (state.open && !state.el.contains(ev.target)) setPickerOpen(state, false);
+    });
+  });
+
+  async function loadCatalog(){
+    const note = root.querySelector('#anfv-fontCount');
+    try {
+      const data = await api('fonts', {method:'GET'});
+      CATALOG = data.fonts || [];
+      CATALOG_SOURCE = data.source || 'bundled';
+      if (note) {
+        note.textContent = CATALOG.length + ' Google Fonts available to choose from'
+          + (CATALOG_SOURCE === 'api'
+            ? ' — the live Google catalog.'
+            : ' — the built-in list. Add a Google Fonts API key under Settings → Font Vote Fonts in WordPress to unlock the full catalog.');
+      }
+      initFontPickers();
+      OPTIONS.forEach(loadFontsForOption);
+    } catch (e) {
+      if (note) note.textContent = 'Could not load the font list just now.';
+    }
   }
 
   function toggleCustomForm(show){
@@ -618,20 +928,20 @@ CSS;
     const nameInput = root.querySelector('#anfv-cfName');
     const tagInput = root.querySelector('#anfv-cfTag');
     const rationaleInput = root.querySelector('#anfv-cfRationale');
-    const hSel = root.querySelector('#anfv-cfHeading');
-    const bSel = root.querySelector('#anfv-cfBody');
-    const name = nameInput.value.trim();
-    if (!name) { setStatus('Give your custom pairing a name first.'); return; }
-    const h = FONT_POOL_HEADINGS[Number(hSel.value)] || FONT_POOL_HEADINGS[0];
-    const b = FONT_POOL_BODY[Number(bSel.value)] || FONT_POOL_BODY[0];
+    const h = PICKERS.heading ? catalogEntry(PICKERS.heading.family) : null;
+    const b = PICKERS.body ? catalogEntry(PICKERS.body.family) : null;
+    if (!h || !b) { setStatus('Pick a heading font and a body font first.'); return; }
+    // Name is optional now — the two font names are a perfectly good default.
+    const name = nameInput.value.trim() || (h.family + ' / ' + b.family);
     setStatus('Adding your custom pairing...');
     try {
       const data = await api('options', {method:'POST', body: JSON.stringify({
         tag: tagInput.value.trim() || 'Custom',
         name: name,
-        rationale: rationaleInput.value.trim() || (h.name + ' heading with ' + b.name + ' body.'),
-        headingFont: h.stack, headingWeight: 600, bodyFont: b.stack, bodyWeight: 400,
-        headingLabel: h.name, bodyLabel: b.name
+        rationale: rationaleInput.value.trim() || (h.family + ' heading with ' + b.family + ' body.'),
+        headingFont: stackFor(h), headingWeight: headingWeightFor(h),
+        bodyFont: stackFor(b), bodyWeight: 400,
+        headingLabel: h.family, bodyLabel: b.family
       })});
       activeId = data.id;
       nameInput.value = ''; tagInput.value = ''; rationaleInput.value = '';
@@ -807,8 +1117,8 @@ CSS;
   root.querySelector('#anfv-customBtn').addEventListener('click', () => toggleCustomForm(true));
   root.querySelector('#anfv-cfCancel').addEventListener('click', () => toggleCustomForm(false));
   root.querySelector('#anfv-cfSubmit').addEventListener('click', addCustomOption);
-  populateFontSelects();
 
+  loadCatalog();
   loadState(false);
   setInterval(() => loadState(true), 20000);
 })();
@@ -862,13 +1172,15 @@ JS;
 	        <button class="gen-btn secondary" id="anfv-customBtn" type="button">+ Custom Option</button>
 	      </div>
 	    </div>
-	    <p class="gen-caption">"+ Random Pairing" pulls a random heading font + a random body font from a
-	      curated pool of ~19 typefaces. "+ Custom Option" lets you choose both fonts yourself from that
-	      same pool and name the pairing. Either way it saves for everyone. Delete anything with the ×
-	      in its corner; baseline stays as the fixed reference point.</p>
+	    <p class="gen-caption">"+ Random Pairing" pulls a random heading font + a random body font from
+	      the popular end of the serif and sans-serif catalog. "+ Custom Option" opens a searchable
+	      picker over the whole Google Fonts library — every font is shown in its own typeface, so you
+	      can see what you're choosing. Either way it saves for everyone. Delete anything with the ×
+	      in its corner; baseline stays as the fixed reference point.
+	      <br><span id="anfv-fontCount">Loading the font list...</span></p>
 	    <div class="custom-form" id="anfv-customForm" style="display:none;">
 	      <div class="cf-row">
-	        <label>Pairing name
+	        <label>Pairing name (optional)
 	          <input type="text" id="anfv-cfName" placeholder="e.g. Warm Editorial">
 	        </label>
 	        <label>Tag (optional)
@@ -877,11 +1189,17 @@ JS;
 	      </div>
 	      <div class="cf-row">
 	        <label>Heading font
-	          <select id="anfv-cfHeading"></select>
+	          <div class="fp" id="anfv-fp-heading"></div>
 	        </label>
 	        <label>Body font
-	          <select id="anfv-cfBody"></select>
+	          <div class="fp" id="anfv-fp-body"></div>
 	        </label>
+	      </div>
+	      <div class="cf-preview">
+	        <div class="cfp-label">Live preview of this pairing</div>
+	        <div class="cfp-head" id="anfv-cfPvHead">Rivers &amp; Streams</div>
+	        <p class="cfp-body" id="anfv-cfPvBody">Rivers have always carried more than water — they
+	          carry memory, boundary, and passage across five centuries of choral writing.</p>
 	      </div>
 	      <label>Rationale (optional)
 	        <textarea id="anfv-cfRationale" rows="2" placeholder="Why this pairing?"></textarea>
