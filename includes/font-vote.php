@@ -455,8 +455,24 @@ function arsnova_core_font_vote_shortcode() {
 #ans-font-vote-root .card .rank-pick .rp-btn{appearance:none;border:1px solid #d8d2c2;background:#fff;color:var(--anfv-navy);padding:5px 11px;border-radius:999px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;}
 #ans-font-vote-root .card .rank-pick .rp-btn:hover{border-color:var(--anfv-gold);}
 #ans-font-vote-root .card .rank-pick .rp-btn.active{background:var(--anfv-navy);border-color:var(--anfv-navy);color:#fff;}
+#ans-font-vote-root .card .other-ranks{display:flex;flex-wrap:wrap;gap:7px;font-size:11px;color:#8a8f9c;margin-top:-4px;}
+#ans-font-vote-root .card .other-ranks .or-item{white-space:nowrap;}
+#ans-font-vote-root .card .other-ranks .or-item b{color:var(--anfv-navy);font-weight:700;}
+#ans-font-vote-root .card .other-ranks .or-item.or-ranked b{color:#9a7a2e;}
 #ans-font-vote-root .voting-as-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 6px;}
 #ans-font-vote-root .voting-as-label{font-size:12.5px;font-weight:700;color:var(--anfv-navy);text-transform:uppercase;letter-spacing:.08em;}
+#ans-font-vote-root .gen-buttons{display:flex;gap:8px;flex-wrap:wrap;}
+#ans-font-vote-root .gen-btn.secondary{background:#fff;color:var(--anfv-navy);}
+#ans-font-vote-root .gen-btn.secondary:hover{background:var(--anfv-cream);}
+#ans-font-vote-root .custom-form{background:var(--anfv-cream);border:1px solid #e2dac4;border-radius:10px;padding:16px 18px;margin:-10px 0 20px;display:flex;flex-direction:column;gap:10px;}
+#ans-font-vote-root .custom-form .cf-row{display:flex;gap:14px;flex-wrap:wrap;}
+#ans-font-vote-root .custom-form label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;font-weight:600;color:var(--anfv-navy);flex:1;min-width:180px;}
+#ans-font-vote-root .custom-form input,#ans-font-vote-root .custom-form select,#ans-font-vote-root .custom-form textarea{font-family:inherit;font-size:13px;padding:8px 10px;border-radius:6px;border:1px solid #d8d2c2;background:#fff;color:var(--anfv-ink);}
+#ans-font-vote-root .custom-form textarea{resize:vertical;}
+#ans-font-vote-root .custom-form .cf-actions{display:flex;gap:8px;}
+#ans-font-vote-root .custom-form .cf-cancel{appearance:none;border:1px solid #d8d2c2;background:#fff;color:#6b7080;padding:9px 16px;border-radius:6px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+#ans-font-vote-root .custom-form .cf-cancel:hover{border-color:#a6493f;color:#a6493f;}
+#ans-font-vote-root .other-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
 #ans-font-vote-root .vote-shell{background:#fff;border:1px solid #e7e1d1;border-radius:12px;padding:26px 26px 6px;margin-bottom:48px;}
 #ans-font-vote-root .person-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
 #ans-font-vote-root .person-tabs button{appearance:none;border:1px solid #d8d2c2;background:var(--anfv-cream);color:var(--anfv-navy);padding:8px 15px;border-radius:999px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
@@ -517,6 +533,8 @@ CSS;
   const root = document.getElementById('ans-font-vote-root');
   const picker = root.querySelector('#anfv-picker');
   const cardGrid = root.querySelector('#anfv-cardGrid');
+  const otherWrap = root.querySelector('#anfv-otherWrap');
+  const otherGrid = root.querySelector('#anfv-otherGrid');
   const personTabs = root.querySelector('#anfv-personTabs');
   const tallyBlock = root.querySelector('#anfv-tallyBlock');
   const statusLine = root.querySelector('#anfv-status');
@@ -579,6 +597,45 @@ CSS;
         headingLabel: h.name, bodyLabel: b.name
       })});
       activeId = data.id;
+      await loadState(true);
+    } catch (e) { setStatus('Could not add that pairing — try again.'); }
+  }
+
+  function populateFontSelects(){
+    const hSel = root.querySelector('#anfv-cfHeading');
+    const bSel = root.querySelector('#anfv-cfBody');
+    if (!hSel || !bSel) return;
+    hSel.innerHTML = FONT_POOL_HEADINGS.map((f, i) => `<option value="${i}">${f.name}</option>`).join('');
+    bSel.innerHTML = FONT_POOL_BODY.map((f, i) => `<option value="${i}">${f.name}</option>`).join('');
+  }
+
+  function toggleCustomForm(show){
+    const form = root.querySelector('#anfv-customForm');
+    if (form) form.style.display = show ? '' : 'none';
+  }
+
+  async function addCustomOption(){
+    const nameInput = root.querySelector('#anfv-cfName');
+    const tagInput = root.querySelector('#anfv-cfTag');
+    const rationaleInput = root.querySelector('#anfv-cfRationale');
+    const hSel = root.querySelector('#anfv-cfHeading');
+    const bSel = root.querySelector('#anfv-cfBody');
+    const name = nameInput.value.trim();
+    if (!name) { setStatus('Give your custom pairing a name first.'); return; }
+    const h = FONT_POOL_HEADINGS[Number(hSel.value)] || FONT_POOL_HEADINGS[0];
+    const b = FONT_POOL_BODY[Number(bSel.value)] || FONT_POOL_BODY[0];
+    setStatus('Adding your custom pairing...');
+    try {
+      const data = await api('options', {method:'POST', body: JSON.stringify({
+        tag: tagInput.value.trim() || 'Custom',
+        name: name,
+        rationale: rationaleInput.value.trim() || (h.name + ' heading with ' + b.name + ' body.'),
+        headingFont: h.stack, headingWeight: 600, bodyFont: b.stack, bodyWeight: 400,
+        headingLabel: h.name, bodyLabel: b.name
+      })});
+      activeId = data.id;
+      nameInput.value = ''; tagInput.value = ''; rationaleInput.value = '';
+      toggleCustomForm(false);
       await loadState(true);
     } catch (e) { setStatus('Could not add that pairing — try again.'); }
   }
@@ -647,43 +704,47 @@ CSS;
     });
   }
 
-  function renderCards(){
-    const { scores, firstPlace, anyVotes, ranked } = computeTally();
-    const order = anyVotes ? ranked : OPTIONS;
-    cardGrid.innerHTML = '';
-    order.forEach((opt, idx) => {
-      const rank = idx + 1;
-      const isLeader = anyVotes && idx === 0 && scores[opt.id] > 0;
-      const myRank = Number((VOTES[activePerson] || {})[opt.id]) || null;
-      const card = document.createElement('div');
-      card.className = 'card' + (isLeader ? ' is-leader' : '');
-      card.innerHTML = `
-        ${opt.deletable ? `<button class="del-btn" title="Delete this option" data-id="${opt.id}">×</button>` : ''}
-        ${opt.deletable ? `<button class="rename-btn" title="Rename this pairing" data-id="${opt.id}" data-name="${escAttr(opt.name)}">✎</button>` : ''}
-        <div class="card-top-row">
-          ${anyVotes ? `<span class="rank-badge${isLeader ? ' leader' : ''}">${isLeader ? '★ Leading' : '#' + rank}</span>` : ''}
-          <span class="tag">${opt.tag}</span>
-        </div>
-        <p class="opt-name">${opt.name}</p>
-        ${isLeader ? `<p class="leader-line">Current leader — ${scores[opt.id]} pt${scores[opt.id] === 1 ? '' : 's'}${firstPlace[opt.id] ? ' · ' + firstPlace[opt.id] + ' first-place vote' + (firstPlace[opt.id] > 1 ? 's' : '') : ''}</p>` : ''}
-        <p class="rationale">${opt.rationale}</p>
-        <div class="sample-head" style="font-family:${opt.headingFont}; font-weight:${opt.headingWeight};">Rivers &amp; Streams</div>
-        <p class="sample-body" style="font-family:${opt.bodyFont}; font-weight:${opt.bodyWeight};">Rivers have always carried more than water — they carry memory, boundary, and passage across five centuries of choral writing.</p>
-        <div class="font-names"><span>Heading: ${opt.headingLabel}</span><span>Body: ${opt.bodyLabel}</span></div>
-        <div class="rank-pick" data-id="${opt.id}">
-          <span class="rp-label">${activePerson || 'Pick who you are'} ranks this:</span>
-          ${[1,2,3].map(r => `<button type="button" class="rp-btn${myRank === r ? ' active' : ''}" data-id="${opt.id}" data-rank="${r}">${r===1?'1st':r===2?'2nd':'3rd'}</button>`).join('')}
-        </div>
-      `;
-      cardGrid.appendChild(card);
-    });
-    cardGrid.querySelectorAll('.del-btn').forEach(btn => {
+  function buildCardEl(opt, idx, scores, firstPlace, anyVotes){
+    const rank = idx + 1;
+    const isLeader = anyVotes && idx === 0 && scores[opt.id] > 0;
+    const myRank = Number((VOTES[activePerson] || {})[opt.id]) || null;
+    const otherRanksHtml = TEAM.filter(p => p !== activePerson).map(p => {
+      const r = Number((VOTES[p] || {})[opt.id]) || null;
+      const label = r === 1 ? '1st' : r === 2 ? '2nd' : r === 3 ? '3rd' : '—';
+      return `<span class="or-item${r ? ' or-ranked' : ''}">${escAttr(p)}: <b>${label}</b></span>`;
+    }).join('');
+    const card = document.createElement('div');
+    card.className = 'card' + (isLeader ? ' is-leader' : '');
+    card.innerHTML = `
+      ${opt.deletable ? `<button class="del-btn" title="Delete this option" data-id="${opt.id}">×</button>` : ''}
+      ${opt.deletable ? `<button class="rename-btn" title="Rename this pairing" data-id="${opt.id}" data-name="${escAttr(opt.name)}">✎</button>` : ''}
+      <div class="card-top-row">
+        ${anyVotes ? `<span class="rank-badge${isLeader ? ' leader' : ''}">${isLeader ? '★ Leading' : '#' + rank}</span>` : ''}
+        <span class="tag">${opt.tag}</span>
+      </div>
+      <p class="opt-name">${opt.name}</p>
+      ${isLeader ? `<p class="leader-line">Current leader — ${scores[opt.id]} pt${scores[opt.id] === 1 ? '' : 's'}${firstPlace[opt.id] ? ' · ' + firstPlace[opt.id] + ' first-place vote' + (firstPlace[opt.id] > 1 ? 's' : '') : ''}</p>` : ''}
+      <p class="rationale">${opt.rationale}</p>
+      <div class="sample-head" style="font-family:${opt.headingFont}; font-weight:${opt.headingWeight};">Rivers &amp; Streams</div>
+      <p class="sample-body" style="font-family:${opt.bodyFont}; font-weight:${opt.bodyWeight};">Rivers have always carried more than water — they carry memory, boundary, and passage across five centuries of choral writing.</p>
+      <div class="font-names"><span>Heading: ${opt.headingLabel}</span><span>Body: ${opt.bodyLabel}</span></div>
+      <div class="rank-pick" data-id="${opt.id}">
+        <span class="rp-label">${activePerson || 'Pick who you are'} ranks this:</span>
+        ${[1,2,3].map(r => `<button type="button" class="rp-btn${myRank === r ? ' active' : ''}" data-id="${opt.id}" data-rank="${r}">${r===1?'1st':r===2?'2nd':'3rd'}</button>`).join('')}
+      </div>
+      ${otherRanksHtml ? `<div class="other-ranks">${otherRanksHtml}</div>` : ''}
+    `;
+    return card;
+  }
+
+  function wireCardEvents(grid){
+    grid.querySelectorAll('.del-btn').forEach(btn => {
       btn.addEventListener('click', () => deleteOption(btn.dataset.id));
     });
-    cardGrid.querySelectorAll('.rename-btn').forEach(btn => {
+    grid.querySelectorAll('.rename-btn').forEach(btn => {
       btn.addEventListener('click', () => renameOption(btn.dataset.id, btn.dataset.name));
     });
-    cardGrid.querySelectorAll('.rp-btn').forEach(btn => {
+    grid.querySelectorAll('.rp-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         if (!activePerson) { setStatus('Pick who you are above first.'); return; }
         const id = btn.dataset.id;
@@ -692,6 +753,24 @@ CSS;
         setCardVote(activePerson, id, current === rank ? '' : rank);
       });
     });
+  }
+
+  function renderCards(){
+    const { scores, firstPlace, anyVotes, ranked } = computeTally();
+    const order = anyVotes ? ranked : OPTIONS;
+    const topOrder = order.slice(0, 3);
+    const otherOrder = order.slice(3);
+    cardGrid.innerHTML = '';
+    otherGrid.innerHTML = '';
+    topOrder.forEach((opt, idx) => {
+      cardGrid.appendChild(buildCardEl(opt, idx, scores, firstPlace, anyVotes));
+    });
+    otherOrder.forEach((opt, idx) => {
+      otherGrid.appendChild(buildCardEl(opt, idx + 3, scores, firstPlace, anyVotes));
+    });
+    if (otherWrap) otherWrap.style.display = otherOrder.length ? '' : 'none';
+    wireCardEvents(cardGrid);
+    wireCardEvents(otherGrid);
   }
 
   function renderPersonTabs(){
@@ -725,6 +804,10 @@ CSS;
 
   root.querySelector('#anfv-genBtn').addEventListener('click', addRandomOption);
   root.querySelector('#anfv-refreshBtn').addEventListener('click', () => loadState(false));
+  root.querySelector('#anfv-customBtn').addEventListener('click', () => toggleCustomForm(true));
+  root.querySelector('#anfv-cfCancel').addEventListener('click', () => toggleCustomForm(false));
+  root.querySelector('#anfv-cfSubmit').addEventListener('click', addCustomOption);
+  populateFontSelects();
 
   loadState(false);
   setInterval(() => loadState(true), 20000);
@@ -774,11 +857,40 @@ JS;
 
 	    <div class="section-row">
 	      <h3 class="section-title">All Options — Side by Side</h3>
-	      <button class="gen-btn" id="anfv-genBtn" type="button">+ Random Pairing</button>
+	      <div class="gen-buttons">
+	        <button class="gen-btn" id="anfv-genBtn" type="button">+ Random Pairing</button>
+	        <button class="gen-btn secondary" id="anfv-customBtn" type="button">+ Custom Option</button>
+	      </div>
 	    </div>
-	    <p class="gen-caption">Pulls a random heading font + a random body font from a curated pool of
-	      ~19 typefaces and saves it for everyone. Delete anything with the × in its corner; baseline
-	      stays as the fixed reference point.</p>
+	    <p class="gen-caption">"+ Random Pairing" pulls a random heading font + a random body font from a
+	      curated pool of ~19 typefaces. "+ Custom Option" lets you choose both fonts yourself from that
+	      same pool and name the pairing. Either way it saves for everyone. Delete anything with the ×
+	      in its corner; baseline stays as the fixed reference point.</p>
+	    <div class="custom-form" id="anfv-customForm" style="display:none;">
+	      <div class="cf-row">
+	        <label>Pairing name
+	          <input type="text" id="anfv-cfName" placeholder="e.g. Warm Editorial">
+	        </label>
+	        <label>Tag (optional)
+	          <input type="text" id="anfv-cfTag" placeholder="Custom">
+	        </label>
+	      </div>
+	      <div class="cf-row">
+	        <label>Heading font
+	          <select id="anfv-cfHeading"></select>
+	        </label>
+	        <label>Body font
+	          <select id="anfv-cfBody"></select>
+	        </label>
+	      </div>
+	      <label>Rationale (optional)
+	        <textarea id="anfv-cfRationale" rows="2" placeholder="Why this pairing?"></textarea>
+	      </label>
+	      <div class="cf-actions">
+	        <button type="button" class="gen-btn" id="anfv-cfSubmit">Add Custom Option</button>
+	        <button type="button" class="cf-cancel" id="anfv-cfCancel">Cancel</button>
+	      </div>
+	    </div>
 
 	    <div class="voting-as-bar">
 	      <span class="voting-as-label">Voting as:</span>
@@ -789,6 +901,13 @@ JS;
 	      and are visible to the whole team.</p>
 
 	    <div class="grid" id="anfv-cardGrid"></div>
+
+	    <div id="anfv-otherWrap" style="display:none;">
+	      <div class="section-row">
+	        <h3 class="section-title">Other Options</h3>
+	      </div>
+	      <div class="grid other-grid" id="anfv-otherGrid"></div>
+	    </div>
 
 	    <div class="section-row">
 	      <h3 class="section-title">Team Standings</h3>
