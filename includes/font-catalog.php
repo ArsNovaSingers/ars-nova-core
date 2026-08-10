@@ -325,6 +325,40 @@ function arsnova_core_fonts_render_settings_page() {
 						</p>
 					</td>
 				</tr>
+				<tr>
+					<th scope="row">
+						<label for="ans-cs-url">Current-site URL</label>
+					</th>
+					<td>
+						<input
+							type="url"
+							id="ans-cs-url"
+							class="regular-text"
+							name="<?php echo esc_attr( ARS_NOVA_CURRENT_SITE_URL_OPTION ); ?>"
+							value="<?php echo esc_attr( (string) get_option( ARS_NOVA_CURRENT_SITE_URL_OPTION, ARS_NOVA_CURRENT_SITE_URL_DEFAULT ) ); ?>"
+							spellcheck="false"
+						>
+						<p class="description">
+							The Font Vote page's "Current Site" baseline card reads its real
+							heading and body fonts from this URL rather than using hardcoded
+							values. Repoint it after the Kinsta cutover.
+							<?php
+							$cs = arsnova_core_current_site_typography();
+							if ( ! empty( $cs['ok'] ) ) {
+								printf(
+									/* translators: 1: heading font, 2: body font, 3: number of font files */
+									' Last read: heading <strong>%1$s</strong>, body <strong>%2$s</strong>, %3$d font file(s).',
+									esc_html( $cs['heading'] ),
+									esc_html( $cs['body'] ),
+									count( $cs['faces'] )
+								);
+							} else {
+								echo ' <strong>Last read failed:</strong> ' . esc_html( (string) $cs['error'] );
+							}
+							?>
+						</p>
+					</td>
+				</tr>
 			</table>
 			<?php submit_button( 'Save key' ); ?>
 		</form>

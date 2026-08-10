@@ -201,6 +201,19 @@ function arsnova_core_register_font_vote_routes() {
 
 	register_rest_route(
 		'ars-nova/v1',
+		'/font-vote/current-site',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => 'arsnova_core_font_vote_current_site_cb',
+			'permission_callback' => '__return_true',
+			'args'                => array(
+				'refresh' => array( 'required' => false ),
+			),
+		)
+	);
+
+	register_rest_route(
+		'ars-nova/v1',
 		'/font-vote/vote',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
@@ -422,6 +435,22 @@ function arsnova_core_font_vote_fonts_cb() {
 }
 
 /**
+ * GET /font-vote/current-site — what the real live site is actually using.
+ *
+ * Feeds the "Current Site" baseline card, which used to be a hardcoded
+ * Georgia/Arial guess. Pass ?refresh=1 to bypass the 12-hour cache.
+ *
+ * @param WP_REST_Request $request Request.
+ * @return WP_REST_Response
+ */
+function arsnova_core_font_vote_current_site_cb( $request ) {
+	$force = (bool) $request->get_param( 'refresh' );
+	$data  = arsnova_core_current_site_typography( $force );
+
+	return new WP_REST_Response( $data, 200 );
+}
+
+/**
  * `[ans_font_vote]` — render the typography review page.
  *
  * @return string
@@ -465,6 +494,9 @@ function arsnova_core_font_vote_shortcode() {
 #ans-font-vote-root .preview-body p{font-size:16px;line-height:1.7;color:#2c2f38;max-width:680px;margin:0 0 12px;}
 #ans-font-vote-root .live-caption{font-size:12.5px;color:#6b7080;margin:12px 0 44px;}
 #ans-font-vote-root .live-caption b{color:var(--anfv-navy);}
+#ans-font-vote-root .current-site-note{font-size:12px;color:#6b7080;background:#fff;border:1px solid #e2dac4;border-left:3px solid var(--anfv-teal);border-radius:6px;padding:9px 13px;margin:-34px 0 44px;}
+#ans-font-vote-root .current-site-note b{color:var(--anfv-navy);}
+#ans-font-vote-root .current-site-note a{color:var(--anfv-teal);}
 #ans-font-vote-root .section-row{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-bottom:1px solid #d8d2c2;padding-bottom:10px;margin:0 0 20px;}
 #ans-font-vote-root h3.section-title{font-size:12.5px;text-transform:uppercase;letter-spacing:.14em;color:var(--anfv-navy);margin:0;}
 #ans-font-vote-root .gen-btn{appearance:none;border:1px solid var(--anfv-navy);background:var(--anfv-navy);color:#fff;padding:9px 16px;border-radius:6px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
@@ -676,6 +708,7 @@ CSS;
       TEAM = data.team || [];
       OPTIONS = data.options || [];
       VOTES = data.votes || {};
+      applyCurrentSite();
       OPTIONS.forEach(loadFontsForOption);
       if (!activePerson || TEAM.indexOf(activePerson) === -1) activePerson = TEAM[0];
       if (!activeId || !OPTIONS.find(o => o.id === activeId)) activeId = OPTIONS.length ? OPTIONS[0].id : null;
@@ -919,6 +952,128 @@ CSS;
     }
   }
 
+  /*
+   * The real live site's typography, read server-side from the actual site
+   * rather than guessed. Patched onto the 'baseline' option every time state
+   * reloads, since the server's stored copy of that option still holds the old
+   * hardcoded stand-in values — the id stays 'baseline' so existing votes on
+   * it survive untouched.
+   */
+  let CURRENT_SITE = null;
+
+  function csFacesFor(family){
+    if (!CURRENT_SITE || !CURRENT_SITE.faces) return [];
+    const key = String(family || '').toLowerCase();
+    return CURRENT_SITE.faces.filter(f => String(f.family).toLowerCase() === key);
+  }
+
+  // Prefer 400 when the live site has it: these are already-bold display faces
+  // in some cases, and asking for 700 on top would synthesise a fake bold.
+  function csWeightFor(family){
+    const w = csFacesFor(family).map(f => Number(f.weight)).filter(n => n);
+    if (!w.length) return 400;
+    return w.indexOf(400) !== -1 ? 400 : Math.min.apply(null, w);
+  }
+
+  function csAgo(ts){
+    const secs = Math.max(0, Math.floor(Date.now() / 1000) - Number(ts || 0));
+    if (secs < 90) return 'just now';
+    if (secs < 5400) return Math.round(secs / 60) + ' min ago';
+    if (secs < 172800) return Math.round(secs / 3600) + ' hr ago';
+    return Math.round(secs / 86400) + ' days ago';
+  }
+
+  /*
+   * Re-declare the live site's own @font-face rules here, pointing at its real
+   * woff2 files. This works because the live site serves them with
+   * access-control-allow-origin: * — without that header the browser would
+   * refuse the cross-origin font. Each family is also marked as loaded so the
+   * Google Fonts loader never tries to fetch a face Google doesn't have.
+   */
+  function injectCurrentSiteFaces(){
+    const old = document.getElementById('anfv-current-site-faces');
+    if (old) old.parentNode.removeChild(old);
+    if (!CURRENT_SITE || !CURRENT_SITE.faces || !CURRENT_SITE.faces.length) return;
+    const css = CURRENT_SITE.faces.map(function (f) {
+      const fmt = /\.woff2(\?|$)/i.test(f.url) ? 'woff2' : 'woff';
+      return '@font-face{font-family:"' + f.family + '";font-style:' + f.style +
+        ';font-weight:' + f.weight + ';font-display:swap;src:url("' + f.url +
+        '") format("' + fmt + '");}';
+    }).join('\n');
+    const el = document.createElement('style');
+    el.id = 'anfv-current-site-faces';
+    el.textContent = css;
+    document.head.appendChild(el);
+    CURRENT_SITE.faces.forEach(f => LOADED_FONTS.add(String(f.family).toLowerCase()));
+  }
+
+  function applyCurrentSite(){
+    if (!CURRENT_SITE) return;
+    const note = root.querySelector('#anfv-currentSiteNote');
+
+    if (!CURRENT_SITE.ok) {
+      if (note) {
+        note.innerHTML = '⚠️ Current Site is showing a <b>stand-in</b> — could not read ' +
+          escAttr(CURRENT_SITE.source_url || 'the live site') + ' (' +
+          escAttr(CURRENT_SITE.error || 'unknown error') + '). ' +
+          '<a href="#" data-cs-refresh="1">Try again</a>';
+        wireCsRefresh(note);
+      }
+      return;
+    }
+
+    const opt = OPTIONS.find(o => o.id === 'baseline');
+    if (opt) {
+      const h = CURRENT_SITE.heading;
+      const b = CURRENT_SITE.body;
+      // The trailing generics are a last resort only — if the real face loads,
+      // which is the normal case, nothing after the first name is ever used.
+      if (h) {
+        opt.headingFont = "'" + h + "', Georgia, 'Times New Roman', serif";
+        opt.headingWeight = csWeightFor(h);
+        opt.headingLabel = h + ' — live site';
+      }
+      if (b) {
+        opt.bodyFont = "'" + b + "', Arial, Helvetica, sans-serif";
+        opt.bodyWeight = csWeightFor(b);
+        opt.bodyLabel = b + ' — live site';
+      }
+      opt.rationale = 'The actual current site, read live from ' + CURRENT_SITE.source_url +
+        ' — its real fonts, not an approximation.';
+    }
+
+    if (note) {
+      note.innerHTML = 'Current Site read live from <b>' + escAttr(CURRENT_SITE.source_url) +
+        '</b> ' + csAgo(CURRENT_SITE.fetched_at) + ' — headings <b>' +
+        escAttr(CURRENT_SITE.heading || 'not found') + '</b>, body <b>' +
+        escAttr(CURRENT_SITE.body || 'not found') + '</b>, rendering ' +
+        CURRENT_SITE.faces.length + ' real font file' +
+        (CURRENT_SITE.faces.length === 1 ? '' : 's') + ' from that site. ' +
+        '<a href="#" data-cs-refresh="1">Re-read now</a>';
+      wireCsRefresh(note);
+    }
+  }
+
+  function wireCsRefresh(note){
+    const link = note.querySelector('[data-cs-refresh]');
+    if (link) link.addEventListener('click', function (e) { e.preventDefault(); loadCurrentSite(true); });
+  }
+
+  async function loadCurrentSite(force){
+    const note = root.querySelector('#anfv-currentSiteNote');
+    if (note && force) note.textContent = 'Re-reading the live site...';
+    try {
+      CURRENT_SITE = await api('current-site' + (force ? '?refresh=1' : ''), {method:'GET'});
+      injectCurrentSiteFaces();
+      applyCurrentSite();
+      renderCards();
+      const cur = OPTIONS.find(o => o.id === activeId);
+      if (cur) applyPreview(cur);
+    } catch (e) {
+      if (note) note.textContent = 'Could not read the live site’s fonts just now.';
+    }
+  }
+
   function toggleCustomForm(show){
     const form = root.querySelector('#anfv-customForm');
     if (form) form.style.display = show ? '' : 'none';
@@ -1119,6 +1274,7 @@ CSS;
   root.querySelector('#anfv-cfSubmit').addEventListener('click', addCustomOption);
 
   loadCatalog();
+  loadCurrentSite(false);
   loadState(false);
   setInterval(() => loadState(true), 20000);
 })();
@@ -1164,6 +1320,7 @@ JS;
 	    </div>
 	    <div class="live-caption">Live preview — currently showing <b id="anfv-liveCaptionName">Current Site
 	      (baseline)</b>. <span id="anfv-status">Loading...</span> <a href="#" id="anfv-refreshBtn">Refresh now</a></div>
+	    <p class="current-site-note" id="anfv-currentSiteNote">Reading the current site's real fonts...</p>
 
 	    <div class="section-row">
 	      <h3 class="section-title">All Options — Side by Side</h3>
@@ -1247,8 +1404,9 @@ JS;
 	      Director) leans the other way for the pairing — a more delicate serif for headings, sans for
 	      body — and said the current fonts (Mirador for headings, Hergon Grotesk for text) feel
 	      "chunky." Neither picked a specific typeface, so options beyond the baseline are candidates to
-	      react to, not decisions already made. The baseline card approximates the current site in
-	      system fonts, since Mirador and Hergon Grotesk aren't available through a web font CDN.
+	      react to, not decisions already made. The Current Site card is <b>read live from the real
+	      site</b> — its actual heading and body font names, rendered in its actual font files — so it
+	      cannot drift out of date as the site changes.
 	    </footer>
 
 	  </div>
