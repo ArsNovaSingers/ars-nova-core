@@ -450,6 +450,13 @@ function arsnova_core_font_vote_shortcode() {
 #ans-font-vote-root .card .sample-head{font-size:24px;line-height:1.15;color:var(--anfv-navy);margin:2px 0;}
 #ans-font-vote-root .card .sample-body{font-size:14px;line-height:1.6;color:#333743;margin:0;}
 #ans-font-vote-root .card .font-names{font-size:11px;color:#8a8f9c;border-top:1px dashed #e2dac4;padding-top:9px;margin-top:auto;}
+#ans-font-vote-root .card .rank-pick{display:flex;align-items:center;gap:6px;flex-wrap:wrap;border-top:1px dashed #e2dac4;padding-top:10px;}
+#ans-font-vote-root .card .rank-pick .rp-label{font-size:11px;color:#8a8f9c;margin-right:2px;}
+#ans-font-vote-root .card .rank-pick .rp-btn{appearance:none;border:1px solid #d8d2c2;background:#fff;color:var(--anfv-navy);padding:5px 11px;border-radius:999px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;}
+#ans-font-vote-root .card .rank-pick .rp-btn:hover{border-color:var(--anfv-gold);}
+#ans-font-vote-root .card .rank-pick .rp-btn.active{background:var(--anfv-navy);border-color:var(--anfv-navy);color:#fff;}
+#ans-font-vote-root .voting-as-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 6px;}
+#ans-font-vote-root .voting-as-label{font-size:12.5px;font-weight:700;color:var(--anfv-navy);text-transform:uppercase;letter-spacing:.08em;}
 #ans-font-vote-root .vote-shell{background:#fff;border:1px solid #e7e1d1;border-radius:12px;padding:26px 26px 6px;margin-bottom:48px;}
 #ans-font-vote-root .person-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;}
 #ans-font-vote-root .person-tabs button{appearance:none;border:1px solid #d8d2c2;background:var(--anfv-cream);color:var(--anfv-navy);padding:8px 15px;border-radius:999px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
@@ -511,12 +518,12 @@ CSS;
   const picker = root.querySelector('#anfv-picker');
   const cardGrid = root.querySelector('#anfv-cardGrid');
   const personTabs = root.querySelector('#anfv-personTabs');
-  const rankList = root.querySelector('#anfv-rankList');
   const tallyBlock = root.querySelector('#anfv-tallyBlock');
   const statusLine = root.querySelector('#anfv-status');
 
   function setStatus(msg){ if (statusLine) statusLine.textContent = msg; }
   function escAttr(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+  const RANK_POINTS = {1:3, 2:2, 3:1};
 
   async function api(path, opts){
     const res = await fetch(REST_BASE + path, Object.assign({headers:{'Content-Type':'application/json'}}, opts || {}));
@@ -533,7 +540,7 @@ CSS;
       VOTES = data.votes || {};
       if (!activePerson || TEAM.indexOf(activePerson) === -1) activePerson = TEAM[0];
       if (!activeId || !OPTIONS.find(o => o.id === activeId)) activeId = OPTIONS.length ? OPTIONS[0].id : null;
-      renderPicker(); renderCards(); renderPersonTabs(); renderRankList(); renderTally();
+      renderPicker(); renderPersonTabs(); renderCards(); renderTally();
       const cur = OPTIONS.find(o => o.id === activeId);
       if (cur) applyPreview(cur);
       setStatus('Updated just now — shared with the whole team.');
@@ -595,7 +602,6 @@ CSS;
   }
 
   function computeTally(){
-    const n = OPTIONS.length;
     const scores = {}; const firstPlace = {};
     OPTIONS.forEach(o => { scores[o.id] = 0; firstPlace[o.id] = 0; });
     let anyVotes = false;
@@ -603,18 +609,31 @@ CSS;
       const personVotes = VOTES[person] || {};
       Object.entries(personVotes).forEach(([optId, rank]) => {
         if (!(optId in scores)) return;
+        const r = Number(rank);
+        if (!RANK_POINTS[r]) return;
         anyVotes = true;
-        scores[optId] += (n - rank + 1);
-        if (rank === 1) firstPlace[optId] += 1;
+        scores[optId] += RANK_POINTS[r];
+        if (r === 1) firstPlace[optId] += 1;
       });
     });
     const ranked = OPTIONS.slice().sort((a,b) => scores[b.id] - scores[a.id]);
     return { scores, firstPlace, anyVotes, ranked };
   }
 
-  async function castVote(person, optionId, rank){
-    try { await api('vote', {method:'POST', body: JSON.stringify({person, option_id: optionId, rank: rank || ''})}); await loadState(true); }
-    catch (e) { setStatus('Could not save that vote — try again.'); }
+  async function setCardVote(person, optionId, rank){
+    if (!person) return;
+    setStatus('Saving your vote...');
+    try {
+      if (rank !== '') {
+        const personVotes = VOTES[person] || {};
+        const conflict = Object.entries(personVotes).find(([id, r]) => Number(r) === Number(rank) && id !== optionId);
+        if (conflict) {
+          await api('vote', {method:'POST', body: JSON.stringify({person, option_id: conflict[0], rank: ''})});
+        }
+      }
+      await api('vote', {method:'POST', body: JSON.stringify({person, option_id: optionId, rank})});
+      await loadState(true);
+    } catch (e) { setStatus('Could not save that vote — try again.'); }
   }
 
   function renderPicker(){
@@ -635,6 +654,7 @@ CSS;
     order.forEach((opt, idx) => {
       const rank = idx + 1;
       const isLeader = anyVotes && idx === 0 && scores[opt.id] > 0;
+      const myRank = Number((VOTES[activePerson] || {})[opt.id]) || null;
       const card = document.createElement('div');
       card.className = 'card' + (isLeader ? ' is-leader' : '');
       card.innerHTML = `
@@ -650,6 +670,10 @@ CSS;
         <div class="sample-head" style="font-family:${opt.headingFont}; font-weight:${opt.headingWeight};">Rivers &amp; Streams</div>
         <p class="sample-body" style="font-family:${opt.bodyFont}; font-weight:${opt.bodyWeight};">Rivers have always carried more than water — they carry memory, boundary, and passage across five centuries of choral writing.</p>
         <div class="font-names"><span>Heading: ${opt.headingLabel}</span><span>Body: ${opt.bodyLabel}</span></div>
+        <div class="rank-pick" data-id="${opt.id}">
+          <span class="rp-label">${activePerson || 'Pick who you are'} ranks this:</span>
+          ${[1,2,3].map(r => `<button type="button" class="rp-btn${myRank === r ? ' active' : ''}" data-id="${opt.id}" data-rank="${r}">${r===1?'1st':r===2?'2nd':'3rd'}</button>`).join('')}
+        </div>
       `;
       cardGrid.appendChild(card);
     });
@@ -659,6 +683,15 @@ CSS;
     cardGrid.querySelectorAll('.rename-btn').forEach(btn => {
       btn.addEventListener('click', () => renameOption(btn.dataset.id, btn.dataset.name));
     });
+    cardGrid.querySelectorAll('.rp-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!activePerson) { setStatus('Pick who you are above first.'); return; }
+        const id = btn.dataset.id;
+        const rank = Number(btn.dataset.rank);
+        const current = Number((VOTES[activePerson] || {})[id]) || null;
+        setCardVote(activePerson, id, current === rank ? '' : rank);
+      });
+    });
   }
 
   function renderPersonTabs(){
@@ -667,37 +700,15 @@ CSS;
       const btn = document.createElement('button');
       btn.textContent = person;
       btn.className = person === activePerson ? 'active' : '';
-      btn.addEventListener('click', () => { activePerson = person; renderPersonTabs(); renderRankList(); });
+      btn.addEventListener('click', () => { activePerson = person; renderPersonTabs(); renderCards(); });
       personTabs.appendChild(btn);
-    });
-  }
-
-  function renderRankList(){
-    rankList.innerHTML = '';
-    OPTIONS.forEach(opt => {
-      const row = document.createElement('div');
-      row.className = 'rank-row';
-      const personVotes = VOTES[activePerson] || {};
-      const currentRank = personVotes[opt.id] || '';
-      let selectHtml = `<option value="">—</option>`;
-      for (let i = 1; i <= OPTIONS.length; i++){
-        selectHtml += `<option value="${i}" ${String(currentRank) === String(i) ? 'selected' : ''}>${i}${i===1?'st':i===2?'nd':i===3?'rd':'th'}</option>`;
-      }
-      row.innerHTML = `
-        <span class="opt-label">${opt.tag === 'Random Pairing' ? opt.name : opt.tag + ' — ' + opt.name}</span>
-        <select data-id="${opt.id}">${selectHtml}</select>
-      `;
-      rankList.appendChild(row);
-    });
-    rankList.querySelectorAll('select').forEach(sel => {
-      sel.addEventListener('change', () => { castVote(activePerson, sel.dataset.id, sel.value); });
     });
   }
 
   function renderTally(){
     const { scores, firstPlace, anyVotes, ranked } = computeTally();
     if (!anyVotes){
-      tallyBlock.innerHTML = '<p class="tally-empty">No votes yet — pick a person above and rank the options.</p>';
+      tallyBlock.innerHTML = '<p class="tally-empty">No votes yet — pick who you are above the cards, then mark 1st, 2nd and 3rd on your favorites.</p>';
       return;
     }
     const maxScore = Math.max(...Object.values(scores), 1);
@@ -768,21 +779,26 @@ JS;
 	    <p class="gen-caption">Pulls a random heading font + a random body font from a curated pool of
 	      ~19 typefaces and saves it for everyone. Delete anything with the × in its corner; baseline
 	      stays as the fixed reference point.</p>
+
+	    <div class="voting-as-bar">
+	      <span class="voting-as-label">Voting as:</span>
+	      <div class="person-tabs" id="anfv-personTabs"></div>
+	    </div>
+	    <p class="vote-hint">Pick who you are above, then mark your 1st, 2nd and 3rd favorite pairing
+	      right on its card below — click a rank again to remove it. Everyone's picks save immediately
+	      and are visible to the whole team.</p>
+
 	    <div class="grid" id="anfv-cardGrid"></div>
 
 	    <div class="section-row">
-	      <h3 class="section-title">Team Vote</h3>
+	      <h3 class="section-title">Team Standings</h3>
 	    </div>
 	    <div class="vote-shell">
-	      <div class="person-tabs" id="anfv-personTabs"></div>
-	      <p class="vote-hint">Pick a person above, then rank the current options 1st, 2nd, 3rd... "—"
-	        means no opinion. Everyone's votes save here immediately and are visible to the whole team.</p>
-	      <div id="anfv-rankList"></div>
 	      <p class="vote-note">Votes are shared across everyone who opens this page — no login required.
 	        Since the page link itself isn't published anywhere, keep it to people you've sent it to
 	        directly.</p>
 	      <div class="tally">
-	        <h4>Tally (weighted: 1st place = most points)</h4>
+	        <h4>Tally (1st = 3 pts, 2nd = 2 pts, 3rd = 1 pt)</h4>
 	        <div id="anfv-tallyBlock"></div>
 	      </div>
 	    </div>
