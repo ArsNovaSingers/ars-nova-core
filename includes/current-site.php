@@ -93,12 +93,15 @@ function arsnova_core_cs_first_family( $value ) {
 }
 
 /**
- * Walk every rule in a blob of CSS looking for the heading and body
- * font-family declarations. Later rules win, matching how the cascade would
- * actually resolve for equal specificity.
+ * Walk every rule in a blob of CSS collecting heading and body font-family
+ * candidates, in the order they appear. Candidates rather than a single winner
+ * because "last one wins" is not sufficient on its own: a plugin stylesheet
+ * carrying a generic `body{font-family:...Helvetica...}` reset will happily
+ * overwrite the theme's real declaration. The caller resolves the winner using
+ * the @font-face evidence as a tie-break.
  *
- * @param string $css      CSS text.
- * @param array  $found    Running result, keys 'heading' and 'body'.
+ * @param string $css   CSS text.
+ * @param array  $found Running result: 'heading' and 'body' arrays.
  * @return array Updated $found.
  */
 function arsnova_core_cs_scan_css( $css, $found ) {
@@ -123,15 +126,45 @@ function arsnova_core_cs_scan_css( $css, $found ) {
 		$selectors = array_map( 'trim', explode( ',', strtolower( $rule[1] ) ) );
 		foreach ( $selectors as $sel ) {
 			if ( 'h1' === $sel || 'h2' === $sel ) {
-				$found['heading'] = $family;
+				$found['heading'][] = $family;
 			}
 			if ( 'body' === $sel ) {
-				$found['body'] = $family;
+				$found['body'][] = $family;
 			}
 		}
 	}
 
 	return $found;
+}
+
+/**
+ * Choose the winning family from the ordered candidate list.
+ *
+ * A family the site ships its own @font-face for is almost certainly the real
+ * one — nobody self-hosts a webfont they aren't using — so the last candidate
+ * backed by a face wins. Failing that, the last candidate wins outright.
+ *
+ * @param array $candidates Ordered family names.
+ * @param array $faces      Parsed @font-face descriptors.
+ * @return string
+ */
+function arsnova_core_cs_pick_family( $candidates, $faces ) {
+	if ( empty( $candidates ) ) {
+		return '';
+	}
+
+	$have = array();
+	foreach ( $faces as $face ) {
+		$have[ strtolower( $face['family'] ) ] = true;
+	}
+
+	for ( $i = count( $candidates ) - 1; $i >= 0; $i-- ) {
+		if ( isset( $have[ strtolower( $candidates[ $i ] ) ] ) ) {
+			return $candidates[ $i ];
+		}
+	}
+
+	return $candidates[ count( $candidates ) - 1 ];
 }
 
 /**
@@ -250,15 +283,7 @@ function arsnova_core_current_site_typography( $force = false ) {
 	}
 
 	$html = (string) wp_remote_retrieve_body( $res );
-	$found = array( 'heading' => '', 'body' => '' );
-
-	// Inline <style> blocks first — on the StageHand site this is where the
-	// live body/heading declarations actually are.
-	if ( preg_match_all( '#<style[^>]*>(.*?)</style>#is', $html, $styles ) ) {
-		foreach ( $styles[1] as $css ) {
-			$found = arsnova_core_cs_scan_css( $css, $found );
-		}
-	}
+	$found = array( 'heading' => array(), 'body' => array() );
 
 	// Then same-host stylesheets, for both any font-family rules they carry
 	// and — the important part — their @font-face definitions.
@@ -292,12 +317,22 @@ function arsnova_core_current_site_typography( $force = false ) {
 		$faces = array_merge( $faces, arsnova_core_cs_parse_font_faces( $css, $sheet ) );
 	}
 
-	$result['heading'] = $found['heading'];
-	$result['body']    = $found['body'];
+	// Then the page's own inline <style> blocks, scanned last so the theme's
+	// own declarations outrank any generic reset a plugin stylesheet carries.
+	// On the StageHand site this is where the real body/heading rules live.
+	if ( preg_match_all( '#<style[^>]*>(.*?)</style>#is', $html, $styles ) ) {
+		foreach ( $styles[1] as $css ) {
+			$found = arsnova_core_cs_scan_css( $css, $found );
+			$faces = array_merge( $faces, arsnova_core_cs_parse_font_faces( $css, $url ) );
+		}
+	}
 
-	// Keep only the faces belonging to the two families actually in use, so
-	// the page loads three font files rather than the theme's whole library.
-	$wanted = array_filter( array( strtolower( $found['heading'] ), strtolower( $found['body'] ) ) );
+	$result['heading'] = arsnova_core_cs_pick_family( $found['heading'], $faces );
+	$result['body']    = arsnova_core_cs_pick_family( $found['body'], $faces );
+
+	// Keep only the faces belonging to the two families actually in use, so the
+	// page loads a handful of font files rather than the theme's whole library.
+	$wanted = array_filter( array( strtolower( $result['heading'] ), strtolower( $result['body'] ) ) );
 	$keep   = array();
 	foreach ( $faces as $face ) {
 		if ( in_array( strtolower( $face['family'] ), $wanted, true ) ) {
@@ -305,7 +340,7 @@ function arsnova_core_current_site_typography( $force = false ) {
 		}
 	}
 	$result['faces'] = array_values( $keep );
-	$result['ok']    = ( '' !== $found['heading'] || '' !== $found['body'] );
+	$result['ok']    = ( '' !== $result['heading'] || '' !== $result['body'] );
 
 	if ( ! $result['ok'] ) {
 		$result['error'] = 'No heading or body font-family found in the live site CSS.';
