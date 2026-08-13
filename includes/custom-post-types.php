@@ -108,3 +108,27 @@ function arsnova_core_register_cpts() {
 }
 
 add_action( 'init', 'arsnova_core_register_cpts' );
+
+/**
+ * Give PAGES an excerpt. (1.8.6)
+ *
+ * WordPress core does not register excerpt support for `page`, so there is no
+ * Excerpt box in the page editor. But post_excerpt is still stored, and this
+ * site depends on it: [ans_season_projects] (ars-nova-ticketing-bridge)
+ * renders each project's blurb from the Event Category description first and
+ * the linked page's excerpt second. All eight category descriptions are empty,
+ * so in practice the page excerpt is what appears on /this-season/.
+ *
+ * The consequence was that those blurbs had only ever been written through the
+ * REST API, and no human editor could see or change them. Kim filed Site Notes
+ * asking for edits to text that had nowhere to be typed — on /this-season/,
+ * "Edit this text to match the info on the actual project page as there are
+ * errors here", pointing at the House Concert page's excerpt.
+ *
+ * This surfaces the native Excerpt panel on every page. It changes no data —
+ * the excerpts already exist — and is reversible by deactivating the plugin.
+ */
+function arsnova_core_add_page_excerpt_support() {
+	add_post_type_support( 'page', 'excerpt' );
+}
+add_action( 'init', 'arsnova_core_add_page_excerpt_support' );
