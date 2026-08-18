@@ -3,7 +3,7 @@
  * Plugin Name:       Ars Nova Core
  * Plugin URI:        https://arsnovasingers.org
  * Description:       Site-specific content structure for Ars Nova Singers — custom post types (Productions, People, Callouts), the ACF options page, ACF field groups, image sizes, and plugin-registered page templates. Kept in a plugin (not the theme) so the site's data layer survives any theme change (StageHand → Kadence). Content registrations lifted verbatim from the StageHand theme.
- * Version:           1.8.6
+ * Version:           1.9.0
  * Author:            Ars Nova Singers
  * Author URI:        https://arsnovasingers.org
  * License:           GPL-2.0-or-later
@@ -22,7 +22,7 @@ define( 'ARS_NOVA_CORE_DIR', plugin_dir_path( __FILE__ ) );
  * see claude/plugins/Ars_Nova_Plugin_Build_Rules.md rule 2. Added in 1.4.0;
  * before that the plugin had no internal version constant at all.
  */
-define( 'ARS_NOVA_CORE_VERSION', '1.8.6' );
+define( 'ARS_NOVA_CORE_VERSION', '1.9.0' );
 
 /**
  * Content structure carried over from the StageHand theme.
@@ -45,6 +45,19 @@ require_once ARS_NOVA_CORE_DIR . 'includes/page-templates.php';
  * forced Kadence settings rather than duplicating them.
  */
 require_once ARS_NOVA_CORE_DIR . 'includes/project-template.php';
+
+/**
+ * Project Modules — the per-page library of blended title/text/image sections
+ * (Program Story, Guest Artist, Tickets) that concert pages assemble and
+ * reorder. Absorbed in 1.9.0 from the standalone ars-nova-project-modules
+ * plugin, which is retired; deactivate and delete it, or its copy of these
+ * functions fatals on redeclare.
+ *
+ * Must load AFTER project-template.php: it calls arsnova_is_project_template()
+ * from that file, and it hooks the_content at priority 8 so its output is
+ * wrapped by the Project Template's own filter at 9.
+ */
+require_once ARS_NOVA_CORE_DIR . 'includes/project-modules.php';
 
 /**
  * People: the `ans_people_group` taxonomy (leadership / board), the per-person

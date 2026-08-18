@@ -1,0 +1,240 @@
+/**
+ * Ars Nova Project Modules
+ *
+ * Values are matched to the hand-built bands already on the concert pages, so a
+ * migrated module is visually indistinguishable from the markup it replaces:
+ *   cream #f5f1e8 · navy text #0e1b3a · gold eyebrow #9a7b2e
+ *   780px content column · 88px vertical padding · 44px headings · 18px body
+ *
+ * Breakpoints are this site's REAL edges, read from Kadence rather than assumed:
+ * 719px (layout mobile edge) and 1024/1025px (header swap). See the website
+ * HANDOFF's breakpoint note before adding any others.
+ */
+
+.anspm-band {
+	/* Full-bleed out of the constrained content column without causing a
+	   horizontal scrollbar. 100vmax, NOT 100vw — 100vw includes the scrollbar
+	   width and pushes the page sideways. Same trick as the season page. */
+	box-shadow: 0 0 0 100vmax var(--anspm-bg);
+	clip-path: inset(0 -100vmax);
+	background: var(--anspm-bg);
+	color: var(--anspm-fg);
+	padding: 88px 24px;
+	margin: 0;
+}
+
+.anspm-band--cream { --anspm-bg: #f5f1e8; --anspm-fg: #0e1b3a; --anspm-accent: #9a7b2e; }
+.anspm-band--white { --anspm-bg: #ffffff; --anspm-fg: #0e1b3a; --anspm-accent: #9a7b2e; }
+.anspm-band--navy  { --anspm-bg: #0e1b3a; --anspm-fg: #f5f1e8; --anspm-accent: #d8b25e; }
+
+.anspm-band__inner {
+	max-width: 780px;
+	margin: 0 auto;
+}
+
+.anspm-eyebrow {
+	margin: 0 0 12px;
+	font-size: 13px;
+	letter-spacing: 2px;
+	text-transform: uppercase;
+	text-align: center;
+	color: var(--anspm-accent);
+}
+
+.anspm-heading {
+	margin: 0 0 24px;
+	font-size: 44px;
+	font-weight: 700;
+	line-height: 1.15;
+	text-align: center;
+	color: var(--anspm-fg);
+}
+
+.anspm-artist__role {
+	margin: -8px 0 28px;
+	font-size: 18px;
+	line-height: 1.7;
+	text-align: center;
+	font-style: italic;
+}
+
+.anspm-body {
+	font-size: 18px;
+	line-height: 1.9;
+}
+
+.anspm-body > p:first-child { margin-top: 0; }
+.anspm-body > p:last-child  { margin-bottom: 0; }
+
+/* Links inside a navy band need to be legible against navy. */
+.anspm-band--navy .anspm-body a { color: var(--anspm-accent); }
+
+/* --- Figures ----------------------------------------------------------- */
+
+.anspm-figure {
+	margin: 36px 0;
+}
+
+.anspm-figure__img {
+	display: block;
+	width: 100%;
+	height: auto;
+	border-radius: 4px;
+}
+
+.anspm-figure__caption {
+	margin-top: 10px;
+	font-size: 14px;
+	line-height: 1.5;
+	text-align: center;
+	opacity: 0.75;
+}
+
+.anspm-figure--above { margin-top: 0; }
+
+/* Floated variants. The float is only worth having when there is enough room
+   for text to actually wrap — below 720px it becomes a one-word-per-line mess,
+   so it unsets at that breakpoint. */
+.anspm-figure--left,
+.anspm-figure--right {
+	max-width: 420px;
+	margin-top: 8px;
+	margin-bottom: 24px;
+}
+
+.anspm-figure--left  { float: left;  margin-right: 32px; }
+.anspm-figure--right { float: right; margin-left: 32px; }
+
+/* Portrait in the Guest Artist module floats right by default — this is the
+   arrangement the House Concert page arrived at and Kim approved. */
+.anspm-figure--portrait {
+	float: right;
+	max-width: 420px;
+	margin: 8px 0 24px 32px;
+}
+
+.anspm-figure--wide { margin: 36px 0 0; }
+
+/* Clear the float so the band's padding is not swallowed by a tall image. */
+.anspm-body::after {
+	content: "";
+	display: block;
+	clear: both;
+}
+
+/* --- Responsive -------------------------------------------------------- */
+
+@media (max-width: 1024px) {
+	.anspm-band   { padding: 64px 24px; }
+	.anspm-heading { font-size: 36px; }
+}
+
+@media (max-width: 719px) {
+	.anspm-band    { padding: 48px 20px; }
+	.anspm-heading { font-size: 28px; }
+	.anspm-body    { font-size: 17px; line-height: 1.8; }
+
+	/* Stack everything. A 420px float in a ~320px column is unreadable. */
+	.anspm-figure--left,
+	.anspm-figure--right,
+	.anspm-figure--portrait {
+		float: none;
+		max-width: 100%;
+		margin: 24px 0;
+	}
+}
+
+/* --- Tickets module ----------------------------------------------------- */
+
+/* Matched to the existing "Choose your night" band: 92px vertical padding
+   rather than the 88px the text bands use. Kept as a real difference because
+   that is what is on the site today, not because 92 is meaningful. */
+.anspm-tickets {
+	padding-top: 92px;
+	padding-bottom: 92px;
+}
+
+/* The palette-9 variant borrows Kadence's OWN custom property rather than a hex
+   of ours, so the band follows the global palette if it is ever retuned.
+   
+   Note it still uses the box-shadow full-bleed like every other band. An earlier
+   draft disabled box-shadow here on the theory that Kadence's
+   has-theme-palette-9-background-color would paint the band — it does paint the
+   ELEMENT, but the element is inside the 780px content column, so the band would
+   have stopped short of the page edges. The colour and the full-bleed are two
+   separate problems; only the colour comes from Kadence. */
+.anspm-band--palette9 {
+	/* Kadence's palette 9 on this site resolves to NAVY, not a light tone —
+	   confirmed visually 2026-08-15. Foreground must therefore be light, exactly
+	   like .anspm-band--navy. An earlier draft assumed a light background and set
+	   navy text, which rendered navy-on-navy; the heading only survived because
+	   the ticket shortcode styles itself white. */
+	--anspm-bg: var(--global-palette9, #0e1b3a);
+	--anspm-fg: #f5f1e8;
+	--anspm-accent: #d8b25e;
+}
+
+/* ⚠️ DO NOT clip the ticket band.
+   Every other band holds static prose, so clip-path: inset(0 -100vmax) never
+   mattered. The ticket band contains [ans_event_tickets] — interactive UI whose
+   Add to cart button renders past the element's bottom edge and was being cut
+   off entirely (observed 2026-08-15).
+
+   Dropping clip-path is safe: the full-bleed COLOUR comes from box-shadow, and
+   box-shadow is ink-only — per spec it does not contribute to the scrollable
+   overflow region, so it cannot reintroduce the horizontal scrollbar that
+   clip-path was guarding against. overflow: visible is stated explicitly so a
+   future parent rule cannot silently reintroduce the clip. */
+.anspm-tickets {
+	clip-path: none;
+	overflow: visible;
+}
+
+.anspm-tickets__note {
+	margin-top: 24px;
+	font-size: 17px;
+	line-height: 1.7;
+	text-align: center;
+}
+
+.anspm-tickets__note > p:last-child { margin-bottom: 0; }
+
+@media (max-width: 1024px) {
+	.anspm-tickets { padding-top: 64px; padding-bottom: 64px; }
+}
+
+@media (max-width: 719px) {
+	.anspm-tickets { padding-top: 48px; padding-bottom: 48px; }
+}
+
+/* --- Anchor offset under Kadence's sticky header ------------------------- */
+
+/* Kadence theme mods on this site: header_sticky "top_main_bottom",
+   header_mobile_sticky "main" — the header is sticky on desktop AND mobile.
+   Without scroll-margin-top, the hero CTA's #tickets jump lands the band at the
+   viewport top and hides its heading behind the nav bar.
+
+   Real measured header heights are 71px desktop / 70px mobile; the values below
+   add breathing room. Kadence's own custom property is used only as an
+   enhancement — a wrong variable name silently falls back and hides the bug. */
+.anspm-band[id] {
+	scroll-margin-top: 80px;
+}
+
+@media (min-width: 1025px) {
+	.anspm-band[id] {
+		scroll-margin-top: 90px;
+	}
+}
+
+/* --- Missing-renderer notice (editors only) ----------------------------- */
+
+.anspm-missing__msg {
+	margin: 0;
+	padding: 16px 20px;
+	border: 2px dashed #9a7b2e;
+	border-radius: 4px;
+	font-size: 16px;
+	line-height: 1.6;
+	text-align: center;
+}
