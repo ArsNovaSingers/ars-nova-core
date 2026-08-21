@@ -44,6 +44,24 @@ function anspm_is_project_page( $post_id ) {
 }
 
 /* ---------------------------------------------------------------------------
+ * Which pages carry modules?
+ *
+ * Project pages, plus the front page. ONE definition, used by the field
+ * group's location rules, the_content filter and the stylesheet enqueue —
+ * three call sites that must never disagree about where modules run.
+ *
+ * get_option( 'page_on_front' ) rather than is_front_page() because this has to
+ * answer for a given id, not only for the page currently rendering.
+ * ------------------------------------------------------------------------ */
+function anspm_page_has_modules( $post_id ) {
+	if ( anspm_is_project_page( $post_id ) ) {
+		return true;
+	}
+	$front = (int) get_option( 'page_on_front' );
+	return $front && (int) $post_id === $front;
+}
+
+/* ---------------------------------------------------------------------------
  * Field registration
  * ------------------------------------------------------------------------ */
 
@@ -306,6 +324,97 @@ function anspm_register_fields() {
 		),
 	);
 
+	// --- News Grid ---------------------------------------------------------
+	$news_bg            = $background_field;
+	$news_bg['key']     = 'field_anspm_news_background';
+	$news_hidden        = $hidden_field;
+	$news_hidden['key'] = 'field_anspm_news_hidden';
+
+	$news_grid = array(
+		'key'        => 'layout_anspm_news_grid',
+		'name'       => 'news_grid',
+		'label'      => 'News Grid',
+		'display'    => 'block',
+		'sub_fields' => array(
+			$news_hidden,
+			array(
+				'key'           => 'field_anspm_news_heading',
+				'label'         => 'Heading',
+				'name'          => 'heading',
+				'type'          => 'text',
+				'default_value' => 'The Nova Buzz',
+			),
+			array(
+				'key'           => 'field_anspm_news_count',
+				'label'         => 'How many posts',
+				'name'          => 'count',
+				'type'          => 'number',
+				'default_value' => 6,
+				'min'           => 1,
+				'max'           => 24,
+			),
+			array(
+				'key'           => 'field_anspm_news_columns',
+				'label'         => 'Columns',
+				'name'          => 'columns',
+				'type'          => 'select',
+				'choices'       => array( '2' => 'Two', '3' => 'Three', '4' => 'Four' ),
+				'default_value' => '3',
+				'ui'            => 0,
+				'instructions'  => 'Desktop only. Always two across on tablet and one on phones.',
+			),
+			array(
+				'key'           => 'field_anspm_news_excerpt_words',
+				'label'         => 'Excerpt length (words)',
+				'name'          => 'excerpt_words',
+				'type'          => 'number',
+				'default_value' => 22,
+				'min'           => 0,
+				'max'           => 100,
+				'instructions'  => 'Set to 0 for titles only.',
+			),
+			array(
+				'key'           => 'field_anspm_news_show_image',
+				'label'         => 'Show featured images',
+				'name'          => 'show_image',
+				'type'          => 'true_false',
+				'ui'            => 1,
+				'default_value' => 1,
+			),
+			array(
+				'key'           => 'field_anspm_news_show_date',
+				'label'         => 'Show dates',
+				'name'          => 'show_date',
+				'type'          => 'true_false',
+				'ui'            => 1,
+				'default_value' => 1,
+			),
+			array(
+				'key'           => 'field_anspm_news_link_label',
+				'label'         => 'Button label',
+				'name'          => 'link_label',
+				'type'          => 'text',
+				'default_value' => 'Read More News',
+				'instructions'  => 'Leave empty for no button.',
+			),
+			array(
+				'key'               => 'field_anspm_news_link_url',
+				'label'             => 'Button link',
+				'name'              => 'link_url',
+				'type'              => 'url',
+				'conditional_logic' => array(
+					array(
+						array(
+							'field'    => 'field_anspm_news_link_label',
+							'operator' => '!=empty',
+						),
+					),
+				),
+			),
+			$news_bg,
+		),
+	);
+
 	acf_add_local_field_group(
 		array(
 			'key'                   => 'group_anspm_project_modules',
@@ -322,15 +431,28 @@ function anspm_register_fields() {
 						'layout_anspm_program_story' => $program_story,
 						'layout_anspm_guest_artist'  => $guest_artist,
 						'layout_anspm_tickets'       => $tickets,
+						'layout_anspm_news_grid'     => $news_grid,
 					),
 				),
 			),
+			// Two groups = OR. Project pages, or the front page. Keep this in
+			// step with anspm_page_has_modules() — ACF decides where the panel
+			// APPEARS, that helper decides where modules RENDER, and a page
+			// that can be filled in but never drawn is the exact failure the
+			// Content Blocks layouts died of.
 			'location'              => array(
 				array(
 					array(
 						'param'    => 'page_template',
 						'operator' => '==',
 						'value'    => 'ans-project-template.php',
+					),
+				),
+				array(
+					array(
+						'param'    => 'page_type',
+						'operator' => '==',
+						'value'    => 'front_page',
 					),
 				),
 			),
@@ -517,6 +639,111 @@ function anspm_render_tickets() {
 }
 
 /**
+ * News Grid — the blog/news band.
+ *
+ * Draws its own grid rather than leaning on core's wp-block-latest-posts CSS.
+ * That block's grid silently collapsed to full width on 2026-08-21 with the
+ * page markup unchanged, and there was no way to correct it from the page.
+ * Owning the markup and the stylesheet means a layout change is ours to make.
+ */
+function anspm_render_news_grid() {
+	if ( get_sub_field( 'hidden' ) ) { return ''; }
+
+	$heading    = (string) get_sub_field( 'heading' );
+	$count      = (int) get_sub_field( 'count' );
+	$columns    = (int) get_sub_field( 'columns' );
+	$words      = (int) get_sub_field( 'excerpt_words' );
+	$show_image = (bool) get_sub_field( 'show_image' );
+	$show_date  = (bool) get_sub_field( 'show_date' );
+	$label      = (string) get_sub_field( 'link_label' );
+	$url        = (string) get_sub_field( 'link_url' );
+	$bg         = (string) get_sub_field( 'background' );
+
+	$count   = $count > 0 ? min( 24, $count ) : 6;
+	$columns = in_array( $columns, array( 2, 3, 4 ), true ) ? $columns : 3;
+
+	$posts = get_posts(
+		array(
+			'post_type'           => 'post',
+			'post_status'         => 'publish',
+			'posts_per_page'      => $count,
+			'ignore_sticky_posts' => true,
+			'no_found_rows'       => true,
+		)
+	);
+
+	// An empty blog is not an error, but a heading above nothing looks broken.
+	// Editors get told why; the public gets nothing at all.
+	if ( empty( $posts ) ) {
+		if ( ! current_user_can( 'edit_posts' ) ) { return ''; }
+		return anspm_band_open( $bg, 'anspm-news' )
+			. '<p class="anspm-missing__msg"><strong>News Grid: no published posts to show.</strong> '
+			. 'Only logged-in editors can see this message.</p>'
+			. anspm_band_close();
+	}
+
+	$out = anspm_band_open( $bg, 'anspm-news' );
+
+	if ( '' !== trim( $heading ) ) {
+		$out .= '<h2 class="anspm-heading">' . esc_html( $heading ) . '</h2>';
+	}
+
+	$out .= '<ul class="anspm-news__list anspm-news__list--cols-' . (int) $columns . '">';
+
+	foreach ( $posts as $post_item ) {
+		$permalink = get_permalink( $post_item );
+		$out      .= '<li class="anspm-news__item">';
+
+		if ( $show_image && has_post_thumbnail( $post_item ) ) {
+			$out .= '<a class="anspm-news__thumb" href="' . esc_url( $permalink ) . '">'
+				. get_the_post_thumbnail(
+					$post_item,
+					'medium_large',
+					array( 'class' => 'anspm-news__img', 'loading' => 'lazy' )
+				)
+				. '</a>';
+		}
+
+		$out .= '<h3 class="anspm-news__title"><a href="' . esc_url( $permalink ) . '">'
+			. esc_html( get_the_title( $post_item ) ) . '</a></h3>';
+
+		if ( $show_date ) {
+			$out .= '<p class="anspm-news__date"><time datetime="'
+				. esc_attr( get_the_date( 'c', $post_item ) ) . '">'
+				. esc_html( get_the_date( '', $post_item ) ) . '</time></p>';
+		}
+
+		if ( $words > 0 ) {
+			$raw     = has_excerpt( $post_item )
+				? get_the_excerpt( $post_item )
+				: wp_strip_all_tags( strip_shortcodes( $post_item->post_content ) );
+			$trimmed = wp_trim_words( $raw, $words, '&hellip;' );
+			if ( '' !== trim( $trimmed ) ) {
+				$out .= '<p class="anspm-news__excerpt">' . esc_html( $trimmed ) . '</p>';
+			}
+		}
+
+		$out .= '</li>';
+	}
+
+	$out .= '</ul>';
+
+	// Core's button classes on purpose, not one of ours: the site already
+	// styles .wp-block-button__link everywhere, including the home page's own
+	// navy-pill-to-gold-on-hover rule. Inventing .anspm-btn would mean this
+	// one button quietly stopped matching every other button on the site.
+	if ( '' !== trim( $label ) && '' !== trim( $url ) ) {
+		$out .= '<div class="wp-block-buttons anspm-news__more is-content-justification-center is-layout-flex">'
+			. '<div class="wp-block-button"><a class="wp-block-button__link wp-element-button" href="'
+			. esc_url( $url ) . '">' . esc_html( $label ) . '</a></div></div>';
+	}
+
+	$out .= anspm_band_close();
+
+	return $out;
+}
+
+/**
  * Notice for a layout that has no renderer. Visible to editors only.
  */
 function anspm_render_missing( $layout ) {
@@ -555,6 +782,9 @@ function anspm_render_modules( $post_id ) {
 			case 'tickets':
 				$out .= anspm_render_tickets();
 				break;
+			case 'news_grid':
+				$out .= anspm_render_news_grid();
+				break;
 			default:
 				// FAIL LOUDLY. A layout with no renderer is exactly how Ligature's 18
 				// "Content Blocks" layouts sat dead for years: the data saved perfectly
@@ -586,7 +816,7 @@ add_filter(
 		}
 
 		$post = get_post();
-		if ( ! $post || ! anspm_is_project_page( $post->ID ) ) {
+		if ( ! $post || ! anspm_page_has_modules( $post->ID ) ) {
 			return $content;
 		}
 
@@ -660,6 +890,7 @@ function anspm_allowed_subfields() {
 		'program_story' => array( 'hidden', 'eyebrow', 'heading', 'body', 'image', 'image_position', 'caption', 'background' ),
 		'guest_artist'  => array( 'hidden', 'eyebrow', 'name', 'role', 'portrait', 'bio', 'second_image', 'link_label', 'link_url', 'background' ),
 		'tickets'       => array( 'hidden', 'heading', 'anchor', 'note', 'background' ),
+		'news_grid'     => array( 'hidden', 'heading', 'count', 'columns', 'excerpt_words', 'show_image', 'show_date', 'link_label', 'link_url', 'background' ),
 	);
 }
 
@@ -739,7 +970,7 @@ function anspm_route_set_modules( WP_REST_Request $req ) {
 add_action(
 	'wp_enqueue_scripts',
 	function () {
-		if ( ! is_singular( 'page' ) || ! anspm_is_project_page( get_queried_object_id() ) ) {
+		if ( ! is_singular( 'page' ) || ! anspm_page_has_modules( get_queried_object_id() ) ) {
 			return;
 		}
 		wp_enqueue_style(

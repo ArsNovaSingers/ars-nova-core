@@ -238,3 +238,99 @@
 	line-height: 1.6;
 	text-align: center;
 }
+
+/* ---------------------------------------------------------------------------
+ * News Grid
+ *
+ * Owns its grid outright. The core wp-block-latest-posts grid this replaces
+ * collapsed to full width on 2026-08-21 with the page markup unchanged and no
+ * way to correct it from the page — the whole point of moving it here is that
+ * the layout is now ours to change.
+ *
+ * Wider than the 780px prose column: three cards do not fit a reading measure.
+ * ------------------------------------------------------------------------ */
+
+.anspm-news .anspm-band__inner {
+	max-width: 1140px;
+}
+
+.anspm-news__list {
+	display: grid;
+	gap: 40px 32px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/* Desktop column counts. Below 1024px everything drops to two, then one —
+   three narrow cards on a tablet reads worse than two comfortable ones. */
+@media (min-width: 1025px) {
+	.anspm-news__list--cols-2 { grid-template-columns: repeat(2, 1fr); }
+	.anspm-news__list--cols-3 { grid-template-columns: repeat(3, 1fr); }
+	.anspm-news__list--cols-4 { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (min-width: 720px) and (max-width: 1024px) {
+	.anspm-news__list { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 719px) {
+	.anspm-news__list { grid-template-columns: 1fr; gap: 32px; }
+}
+
+.anspm-news__item {
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.anspm-news__thumb {
+	display: block;
+	margin: 0 0 14px;
+	line-height: 0;
+}
+
+.anspm-news__img {
+	width: 100%;
+	height: auto;
+	aspect-ratio: 3 / 2;
+	object-fit: cover;
+	display: block;
+}
+
+.anspm-news__title {
+	margin: 0 0 6px;
+	font-size: 21px;
+	line-height: 1.3;
+}
+
+.anspm-news__title a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.anspm-news__title a:hover,
+.anspm-news__title a:focus-visible {
+	text-decoration: underline;
+}
+
+.anspm-news__date {
+	margin: 0 0 10px;
+	font-size: 13px;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: var(--anspm-accent);
+}
+
+.anspm-news__excerpt {
+	margin: 0;
+	font-size: 16px;
+	line-height: 1.65;
+}
+
+.anspm-news__more {
+	margin: 44px 0 0;
+	display: flex;
+	justify-content: center;
+}
