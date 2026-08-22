@@ -1,0 +1,404 @@
+{
+    "key": "group_anspm_project_modules",
+    "title": "Project Modules",
+    "fields": [
+        {
+            "key": "field_anspm_modules",
+            "label": "Modules",
+            "name": "ans_project_modules",
+            "type": "flexible_content",
+            "button_label": "Add module",
+            "instructions": "Blended title / text / image sections. Add as many as you like, drag to reorder, and use \"Hide this module\" to park one until its content is ready. These render below the page blocks and above the Support band.",
+            "layouts": {
+                "layout_anspm_program_story": {
+                    "key": "layout_anspm_program_story",
+                    "name": "program_story",
+                    "label": "Program Story",
+                    "display": "block",
+                    "sub_fields": [
+                        {
+                            "key": "field_anspm_story_hidden",
+                            "label": "Hide this module",
+                            "name": "hidden",
+                            "type": "true_false",
+                            "ui": 1,
+                            "default_value": 0,
+                            "instructions": "Keeps the module and its content, but stops it appearing on the site. Use this while waiting on a bio or a photo."
+                        },
+                        {
+                            "key": "field_anspm_story_eyebrow",
+                            "label": "Eyebrow",
+                            "name": "eyebrow",
+                            "type": "text",
+                            "instructions": "Small gold caps above the heading — e.g. \"The Program\"."
+                        },
+                        {
+                            "key": "field_anspm_story_heading",
+                            "label": "Heading",
+                            "name": "heading",
+                            "type": "text"
+                        },
+                        {
+                            "key": "field_anspm_story_body",
+                            "label": "Body",
+                            "name": "body",
+                            "type": "wysiwyg",
+                            "media_upload": 0,
+                            "tabs": "visual",
+                            "toolbar": "basic",
+                            "instructions": "Images go in the Image field below, not inline — that is what keeps the layout consistent across pages."
+                        },
+                        {
+                            "key": "field_anspm_story_image",
+                            "label": "Image",
+                            "name": "image",
+                            "type": "image",
+                            "return_format": "id",
+                            "preview_size": "medium",
+                            "library": "all"
+                        },
+                        {
+                            "key": "field_anspm_story_image_position",
+                            "label": "Image position",
+                            "name": "image_position",
+                            "type": "select",
+                            "choices": {
+                                "above": "Above the text",
+                                "below": "Below the text",
+                                "left": "Left of the text (wraps)",
+                                "right": "Right of the text (wraps)",
+                                "wide": "Full width of the column"
+                            },
+                            "default_value": "below",
+                            "ui": 0,
+                            "conditional_logic": [
+                                [
+                                    {
+                                        "field": "field_anspm_story_image",
+                                        "operator": "!=empty"
+                                    }
+                                ]
+                            ]
+                        },
+                        {
+                            "key": "field_anspm_story_caption",
+                            "label": "Caption",
+                            "name": "caption",
+                            "type": "text",
+                            "conditional_logic": [
+                                [
+                                    {
+                                        "field": "field_anspm_story_image",
+                                        "operator": "!=empty"
+                                    }
+                                ]
+                            ]
+                        },
+                        {
+                            "key": "field_anspm_story_background",
+                            "label": "Background",
+                            "name": "background",
+                            "type": "select",
+                            "choices": {
+                                "cream": "Cream (#f5f1e8)",
+                                "white": "White",
+                                "navy": "Navy (reversed text)"
+                            },
+                            "default_value": "cream",
+                            "ui": 0,
+                            "instructions": "Alternate cream and white down the page. Navy is for emphasis — use sparingly."
+                        }
+                    ]
+                },
+                "layout_anspm_guest_artist": {
+                    "key": "layout_anspm_guest_artist",
+                    "name": "guest_artist",
+                    "label": "Guest Artist",
+                    "display": "block",
+                    "sub_fields": [
+                        {
+                            "key": "field_anspm_artist_hidden",
+                            "label": "Hide this module",
+                            "name": "hidden",
+                            "type": "true_false",
+                            "ui": 1,
+                            "default_value": 0,
+                            "instructions": "Keeps the module and its content, but stops it appearing on the site. Use this while waiting on a bio or a photo."
+                        },
+                        {
+                            "key": "field_anspm_artist_eyebrow",
+                            "label": "Eyebrow",
+                            "name": "eyebrow",
+                            "type": "text",
+                            "default_value": "Guest Artist"
+                        },
+                        {
+                            "key": "field_anspm_artist_name",
+                            "label": "Name",
+                            "name": "name",
+                            "type": "text"
+                        },
+                        {
+                            "key": "field_anspm_artist_role",
+                            "label": "Role / one-line intro",
+                            "name": "role",
+                            "type": "text",
+                            "instructions": "e.g. \"Guest artist Nicolò Spera joins Ars Nova Singers for all three performances.\""
+                        },
+                        {
+                            "key": "field_anspm_artist_portrait",
+                            "label": "Portrait",
+                            "name": "portrait",
+                            "type": "image",
+                            "return_format": "id",
+                            "preview_size": "medium"
+                        },
+                        {
+                            "key": "field_anspm_artist_bio",
+                            "label": "Biography",
+                            "name": "bio",
+                            "type": "wysiwyg",
+                            "media_upload": 0,
+                            "tabs": "visual",
+                            "toolbar": "basic"
+                        },
+                        {
+                            "key": "field_anspm_artist_second_image",
+                            "label": "Second image",
+                            "name": "second_image",
+                            "type": "image",
+                            "return_format": "id",
+                            "preview_size": "medium",
+                            "instructions": "Optional. Appears full width below the biography."
+                        },
+                        {
+                            "key": "field_anspm_artist_link_label",
+                            "label": "Link label",
+                            "name": "link_label",
+                            "type": "text"
+                        },
+                        {
+                            "key": "field_anspm_artist_link_url",
+                            "label": "Link URL",
+                            "name": "link_url",
+                            "type": "url",
+                            "conditional_logic": [
+                                [
+                                    {
+                                        "field": "field_anspm_artist_link_label",
+                                        "operator": "!=empty"
+                                    }
+                                ]
+                            ]
+                        },
+                        {
+                            "key": "field_anspm_artist_background",
+                            "label": "Background",
+                            "name": "background",
+                            "type": "select",
+                            "choices": {
+                                "cream": "Cream (#f5f1e8)",
+                                "white": "White",
+                                "navy": "Navy (reversed text)"
+                            },
+                            "default_value": "white",
+                            "ui": 0,
+                            "instructions": "Alternate cream and white down the page. Navy is for emphasis — use sparingly."
+                        }
+                    ]
+                },
+                "layout_anspm_tickets": {
+                    "key": "layout_anspm_tickets",
+                    "name": "tickets",
+                    "label": "Tickets",
+                    "display": "block",
+                    "sub_fields": [
+                        {
+                            "key": "field_anspm_tickets_hidden",
+                            "label": "Hide this module",
+                            "name": "hidden",
+                            "type": "true_false",
+                            "ui": 1,
+                            "default_value": 0,
+                            "instructions": "Hides the whole ticket band. Useful before tickets go on sale."
+                        },
+                        {
+                            "key": "field_anspm_tickets_heading",
+                            "label": "Heading",
+                            "name": "heading",
+                            "type": "text",
+                            "default_value": "Choose your night",
+                            "instructions": "Passed straight to the ticket block. Existing pages use \"Choose your night\", \"Reserve your seat\", \"Reserve a free seat\"."
+                        },
+                        {
+                            "key": "field_anspm_tickets_anchor",
+                            "label": "Anchor id",
+                            "name": "anchor",
+                            "type": "text",
+                            "default_value": "tickets",
+                            "instructions": "Leave as \"tickets\" unless you know why you are changing it — the hero button links to #tickets. Only one module on a page should use it."
+                        },
+                        {
+                            "key": "field_anspm_tickets_note",
+                            "label": "Note below the tickets",
+                            "name": "note",
+                            "type": "wysiwyg",
+                            "media_upload": 0,
+                            "tabs": "visual",
+                            "toolbar": "basic",
+                            "instructions": "Optional. e.g. \"This concert is free. Reserving a seat costs you nothing and tells us how many chairs to put out.\""
+                        },
+                        {
+                            "key": "field_anspm_tickets_background",
+                            "label": "Background",
+                            "name": "background",
+                            "type": "select",
+                            "choices": {
+                                "palette9": "Kadence palette 9 (matches the current ticket bands)",
+                                "cream": "Cream (#f5f1e8)",
+                                "white": "White",
+                                "navy": "Navy (reversed text)"
+                            },
+                            "default_value": "palette9",
+                            "ui": 0,
+                            "instructions": "Alternate cream and white down the page. Navy is for emphasis — use sparingly."
+                        }
+                    ]
+                },
+                "layout_anspm_news_grid": {
+                    "key": "layout_anspm_news_grid",
+                    "name": "news_grid",
+                    "label": "News Grid",
+                    "display": "block",
+                    "sub_fields": [
+                        {
+                            "key": "field_anspm_news_hidden",
+                            "label": "Hide this module",
+                            "name": "hidden",
+                            "type": "true_false",
+                            "ui": 1,
+                            "default_value": 0,
+                            "instructions": "Keeps the module and its content, but stops it appearing on the site. Use this while waiting on a bio or a photo."
+                        },
+                        {
+                            "key": "field_anspm_news_heading",
+                            "label": "Heading",
+                            "name": "heading",
+                            "type": "text",
+                            "default_value": "The Nova Buzz"
+                        },
+                        {
+                            "key": "field_anspm_news_count",
+                            "label": "How many posts",
+                            "name": "count",
+                            "type": "number",
+                            "default_value": 6,
+                            "min": 1,
+                            "max": 24
+                        },
+                        {
+                            "key": "field_anspm_news_columns",
+                            "label": "Columns",
+                            "name": "columns",
+                            "type": "select",
+                            "choices": {
+                                "2": "Two",
+                                "3": "Three",
+                                "4": "Four"
+                            },
+                            "default_value": "3",
+                            "ui": 0,
+                            "instructions": "Desktop only. Always two across on tablet and one on phones."
+                        },
+                        {
+                            "key": "field_anspm_news_excerpt_words",
+                            "label": "Excerpt length (words)",
+                            "name": "excerpt_words",
+                            "type": "number",
+                            "default_value": 22,
+                            "min": 0,
+                            "max": 100,
+                            "instructions": "Set to 0 for titles only."
+                        },
+                        {
+                            "key": "field_anspm_news_show_image",
+                            "label": "Show featured images",
+                            "name": "show_image",
+                            "type": "true_false",
+                            "ui": 1,
+                            "default_value": 1
+                        },
+                        {
+                            "key": "field_anspm_news_show_date",
+                            "label": "Show dates",
+                            "name": "show_date",
+                            "type": "true_false",
+                            "ui": 1,
+                            "default_value": 1
+                        },
+                        {
+                            "key": "field_anspm_news_link_label",
+                            "label": "Button label",
+                            "name": "link_label",
+                            "type": "text",
+                            "default_value": "Read More News",
+                            "instructions": "Leave empty for no button."
+                        },
+                        {
+                            "key": "field_anspm_news_link_url",
+                            "label": "Button link",
+                            "name": "link_url",
+                            "type": "url",
+                            "conditional_logic": [
+                                [
+                                    {
+                                        "field": "field_anspm_news_link_label",
+                                        "operator": "!=empty"
+                                    }
+                                ]
+                            ]
+                        },
+                        {
+                            "key": "field_anspm_news_background",
+                            "label": "Background",
+                            "name": "background",
+                            "type": "select",
+                            "choices": {
+                                "cream": "Cream (#f5f1e8)",
+                                "white": "White",
+                                "navy": "Navy (reversed text)"
+                            },
+                            "default_value": "cream",
+                            "ui": 0,
+                            "instructions": "Alternate cream and white down the page. Navy is for emphasis — use sparingly."
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "location": [
+        [
+            {
+                "param": "page_template",
+                "operator": "==",
+                "value": "ans-project-template.php"
+            }
+        ],
+        [
+            {
+                "param": "page_type",
+                "operator": "==",
+                "value": "front_page"
+            }
+        ]
+    ],
+    "menu_order": 0,
+    "position": "normal",
+    "style": "default",
+    "label_placement": "top",
+    "active": true,
+    "show_in_rest": true,
+    "description": "Content sections for concert pages and the front page. Edit them here - ACF saves changes back into ars-nova-core/acf-json on whichever SITE you edit, so if you change fields on staging tell a developer or the next deploy overwrites them. Renderers live in ars-nova-core/includes/project-modules.php: a brand-new layout type needs one written before it will draw anything.",
+    "modified": 1755561600
+}
