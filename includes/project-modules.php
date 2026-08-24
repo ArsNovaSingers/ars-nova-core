@@ -67,6 +67,87 @@ function anspm_page_has_modules( $post_id ) {
 }
 
 /* ---------------------------------------------------------------------------
+ * MODULE SHORTCODE MANIFEST
+ *
+ * What shortcodes will this page's modules render?
+ *
+ * WHY THIS EXISTS. Plugins decide whether to load their CSS/JS by scanning
+ * post_content — ars-nova-ticketing-bridge does exactly this for
+ * [ans_event_tickets]. Module content is NOT in post_content, so a page whose
+ * ticket band moved into a Tickets module lost the picker's stylesheet and
+ * script while still rendering its markup: broken, and it looked fine.
+ * (Reproduced on staging 2026-08-23.)
+ *
+ * This is the declared answer to "what will this page render?". It is a
+ * hand-maintained map, deliberately — inferring it by regexing renderer output
+ * would be guessing about our own code.
+ *
+ * ADDING A LAYOUT THAT EMITS A SHORTCODE? Add it here, or its assets will not
+ * load and the failure will be silent.
+ * ------------------------------------------------------------------------ */
+function anspm_layout_shortcodes() {
+	return array(
+		'tickets' => array( 'ans_event_tickets' ),
+		// program_story, guest_artist and news_grid emit no shortcodes.
+	);
+}
+
+/**
+ * Shortcodes this page's modules will actually render.
+ *
+ * Hidden rows are skipped: a hidden module draws nothing, so it needs nothing.
+ * Reads with get_field() rather than have_rows() so this can be called from
+ * wp_enqueue_scripts without disturbing an ACF loop mid-render.
+ *
+ * @param int $post_id
+ * @return string[]
+ */
+function anspm_page_module_shortcodes( $post_id ) {
+	static $cache = array();
+
+	$post_id = (int) $post_id;
+	if ( isset( $cache[ $post_id ] ) ) {
+		return $cache[ $post_id ];
+	}
+
+	$found = array();
+
+	if ( function_exists( 'get_field' ) ) {
+		$rows = get_field( 'ans_project_modules', $post_id );
+		if ( is_array( $rows ) ) {
+			$map = anspm_layout_shortcodes();
+			foreach ( $rows as $row ) {
+				if ( ! is_array( $row ) || empty( $row['acf_fc_layout'] ) ) {
+					continue;
+				}
+				if ( ! empty( $row['hidden'] ) ) {
+					continue;
+				}
+				$layout = (string) $row['acf_fc_layout'];
+				if ( isset( $map[ $layout ] ) ) {
+					$found = array_merge( $found, $map[ $layout ] );
+				}
+			}
+		}
+	}
+
+	$cache[ $post_id ] = array_values( array_unique( $found ) );
+
+	return $cache[ $post_id ];
+}
+
+/**
+ * Public API. Other plugins ask this INSTEAD of has_shortcode( post_content ).
+ *
+ * @param int    $post_id
+ * @param string $tag
+ * @return bool
+ */
+function anspm_page_has_shortcode( $post_id, $tag ) {
+	return in_array( (string) $tag, anspm_page_module_shortcodes( $post_id ), true );
+}
+
+/* ---------------------------------------------------------------------------
  * Rendering
  * ------------------------------------------------------------------------ */
 
@@ -419,10 +500,49 @@ add_filter(
 			return $content;
 		}
 
+		// PLACEMENT MARKER. If the page declares [ans_modules], the shortcode
+		// renders the modules in that position and this filter must NOT also
+		// append them. Without a marker we append, exactly as before 1.12.0, so
+		// every existing page is unaffected.
+		//
+		// This is what makes a page migratable one section at a time. Appending
+		// only ever allowed all-at-once migration: move one block to a module and
+		// that section jumped to the bottom of the page.
+		if ( has_shortcode( $content, 'ans_modules' ) ) {
+			return $content;
+		}
+
 		return $content . anspm_render_modules( $post->ID );
 	},
 	8
 );
+
+/**
+ * [ans_modules] — render this page's modules HERE.
+ *
+ * Runs at do_shortcode's priority 11, after the Project Template's filter at 9,
+ * so modules land inside the wrapped content exactly where the editor put the
+ * marker.
+ *
+ * Renders at most once per request: two markers on one page would otherwise
+ * draw every module twice.
+ */
+add_shortcode( 'ans_modules', 'anspm_shortcode_modules' );
+
+function anspm_shortcode_modules() {
+	static $done = false;
+
+	$post = get_post();
+	if ( ! $post || ! anspm_page_has_modules( $post->ID ) ) {
+		return '';
+	}
+	if ( $done ) {
+		return '';
+	}
+	$done = true;
+
+	return anspm_render_modules( $post->ID );
+}
 
 /* ---------------------------------------------------------------------------
  * REST — read and write a page's modules.
@@ -579,4 +699,79 @@ add_action(
 			ANSPM_VERSION
 		);
 	}
+);
+
+/* ---------------------------------------------------------------------------
+ * MODULE ASSET BRIDGE
+ *
+ * Enqueue the assets belonging to shortcodes our modules will render.
+ *
+ * PRIORITY 20 IS LOAD-BEARING. ars-nova-ticketing-bridge registers
+ * 'ans-event-tickets' INSIDE its own wp_enqueue_scripts callback at the default
+ * priority 10, then enqueues it only if has_shortcode( post_content, ... ).
+ * At priority 10 the handle may not exist yet; by 20 it does. The
+ * wp_style_is( ..., 'registered' ) guard means a handle that is genuinely
+ * absent is skipped rather than throwing.
+ *
+ * The bridge needs no change for this to work, and its enqueue closure is
+ * anonymous so it could not be unhooked anyway.
+ *
+ * LONGER TERM this mapping belongs in the plugin that owns the assets, calling
+ * anspm_page_has_shortcode() behind function_exists(). The anspm_module_assets
+ * filter exists so it can move there without touching this file. Move it when
+ * the bridge is next opened for other reasons — not for this alone.
+ * ------------------------------------------------------------------------ */
+add_action(
+	'wp_enqueue_scripts',
+	function () {
+		if ( ! is_singular( 'page' ) ) {
+			return;
+		}
+
+		$post_id = (int) get_queried_object_id();
+		if ( ! $post_id || ! anspm_page_has_modules( $post_id ) ) {
+			return;
+		}
+
+		$codes = anspm_page_module_shortcodes( $post_id );
+		if ( empty( $codes ) ) {
+			return;
+		}
+
+		$handles = array(
+			'styles'  => array(),
+			'scripts' => array(),
+		);
+
+		if ( in_array( 'ans_event_tickets', $codes, true ) ) {
+			$handles['styles'][]  = 'ans-event-tickets';
+			$handles['scripts'][] = 'ans-event-tickets';
+		}
+
+		/**
+		 * Assets a page's modules need.
+		 *
+		 * @param array  $handles  array{styles: string[], scripts: string[]}
+		 * @param int    $post_id
+		 * @param array  $codes    shortcode tags the modules will render
+		 */
+		$handles = apply_filters( 'anspm_module_assets', $handles, $post_id, $codes );
+
+		if ( ! empty( $handles['styles'] ) ) {
+			foreach ( (array) $handles['styles'] as $handle ) {
+				if ( wp_style_is( $handle, 'registered' ) ) {
+					wp_enqueue_style( $handle );
+				}
+			}
+		}
+
+		if ( ! empty( $handles['scripts'] ) ) {
+			foreach ( (array) $handles['scripts'] as $handle ) {
+				if ( wp_script_is( $handle, 'registered' ) ) {
+					wp_enqueue_script( $handle );
+				}
+			}
+		}
+	},
+	20
 );
