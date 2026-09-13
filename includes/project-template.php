@@ -261,12 +261,32 @@ function arsnova_project_hero( $post ) {
 /**
  * Build the Support band markup.
  *
+ * The band now mirrors the hero's treatment rather than rendering as a solid
+ * fill: the page's FEATURED IMAGE is applied as an inline background-image on
+ * a media layer (same reason as the hero — parallax needs a background, not an
+ * <img>), with a cream overlay above it. Pages with no featured image fall
+ * back to the flat cream background set in the stylesheet.
+ *
+ * @param WP_Post $post The page.
  * @return string
  */
-function arsnova_project_support() {
+function arsnova_project_support( $post ) {
+	$post_id = $post->ID;
+
+	$image_id  = get_post_thumbnail_id( $post_id );
+	$image_url = $image_id ? wp_get_attachment_image_url( $image_id, 'full' ) : '';
+
+	$media_style = $image_url
+		? ' style="background-image:url(' . esc_url( $image_url ) . ')"'
+		: '';
+
+	$has_image_class = $image_url ? ' ansp-support--has-image' : ' ansp-support--no-image';
+
 	ob_start();
 	?>
-	<section class="ansp-support">
+	<section class="ansp-support<?php echo esc_attr( $has_image_class ); ?>">
+		<div class="ansp-support__media"<?php echo $media_style; // phpcs:ignore WordPress.Security.EscapeOutput -- built from esc_url above. ?>></div>
+		<div class="ansp-support__overlay" aria-hidden="true"></div>
 		<div class="ansp-support__inner">
 			<h2 class="ansp-support__title"><?php echo esc_html( ARS_NOVA_PROJECT_SUPPORT_HEADING ); ?></h2>
 			<p class="ansp-support__body"><?php echo esc_html( ARS_NOVA_PROJECT_SUPPORT_BODY ); ?></p>
@@ -310,7 +330,7 @@ add_filter(
 
 		return arsnova_project_hero( $post )
 			. $content
-			. arsnova_project_support();
+			. arsnova_project_support( $post );
 	},
 	9 // Before wpautop (10), so our markup is not mangled by paragraph insertion.
 );
