@@ -296,6 +296,12 @@
 	margin: 0 auto;
 }
 
+.ans-project-template .ansp-tickets__note {
+	margin: 24px 0 0;
+	font-size: 17px;
+	line-height: 1.7;
+}
+
 @media (max-width: 1024px) {
 	.ans-project-template .ansp-tickets {
 		padding: 72px 24px;

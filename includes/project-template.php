@@ -57,8 +57,10 @@
  *   _ans_hero_cta_label  default: "Get Tickets"
  *   _ans_hero_cta_href   default: "#tickets"
  *   _ans_tickets_heading default: ARS_NOVA_PROJECT_TICKETS_HEADING
+ *   _ans_tickets_note    default: none (a short line printed under the picker,
+ *                        e.g. the residency's "This concert is free...")
  *
- * All six are registered in REST, so they are settable from the WordPress MCP
+ * All seven are registered in REST, so they are settable from the WordPress MCP
  * connector and appear in the block editor's page sidebar via custom fields.
  *
  * @package ars-nova-core
@@ -190,6 +192,7 @@ add_action(
 			'_ans_hero_cta_label',
 			'_ans_hero_cta_href',
 			'_ans_tickets_heading',
+			'_ans_tickets_note',
 		);
 
 		foreach ( $fields as $field ) {
@@ -329,8 +332,12 @@ function arsnova_project_tickets( $post ) {
 	 */
 	$heading = str_replace( array( '"', '[', ']' ), '', wp_strip_all_tags( $heading ) );
 
+	$note = arsnova_project_field( $post->ID, '_ans_tickets_note' );
+	$note = $note ? '<p class="ansp-tickets__note">' . wp_kses_post( $note ) . '</p>' : '';
+
 	return '<section id="tickets" class="ansp-tickets"><div class="ansp-tickets__inner">'
 		. "\n\n" . '[ans_event_tickets heading="' . $heading . '"]' . "\n\n"
+		. $note
 		. '</div></section>';
 }
 
