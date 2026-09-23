@@ -259,9 +259,10 @@
 /* ---------------------------------------------------------------------------
  * TICKETS BAND (#tickets)
  *
- * This band still lives in each page's block content — it has to, because its
- * ticket rows are per-performance. But its COLOURS are shared, so they are
- * governed here rather than seven times over.
+ * Since 1.12.0 the template draws this band itself, directly under the hero
+ * (.ansp-tickets, see arsnova_project_tickets()). A page whose own content
+ * still carries [ans_event_tickets] keeps its own copy instead, so the colour
+ * rules below stay keyed to the #tickets id, which both versions share.
  *
  * WHY !important IS USED HERE, AND ONLY HERE.
  * The block markup carries the old colours two different ways: the six concert
@@ -282,6 +283,29 @@
 .ans-project-template #tickets {
 	background-color: var(--ansp-navy) !important;
 	color: #fff !important;
+}
+
+/* Layout for the template-drawn band. Mirrors the page bands' 92px / 780px. */
+.ans-project-template .ansp-tickets {
+	padding: 92px 24px;
+	text-align: left;
+}
+
+.ans-project-template .ansp-tickets__inner {
+	max-width: 780px;
+	margin: 0 auto;
+}
+
+@media (max-width: 1024px) {
+	.ans-project-template .ansp-tickets {
+		padding: 72px 24px;
+	}
+}
+
+@media (max-width: 719px) {
+	.ans-project-template .ansp-tickets {
+		padding: 56px 20px;
+	}
 }
 
 .ans-project-template #tickets h2,
