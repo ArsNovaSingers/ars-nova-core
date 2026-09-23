@@ -11,11 +11,24 @@
  * every change to either meant seven hand edits — and the seventh page (House
  * Concert, 6488) had drifted into a different hero structure entirely.
  *
- * This template moves the two boilerplate bands OUT of page content and into
- * code, so changing them here changes them on every project page, existing and
+ * This template moves the boilerplate bands OUT of page content and into code,
+ * so changing them here changes them on every project page, existing and
  * future, with no per-page edit. The pages keep their unique middle (the
- * program essay, the artist bio, the ticket rows) in the block editor where
- * Kim and Tom can edit them.
+ * program essay, the artist bio) in the block editor where Kim and Tom can
+ * edit them.
+ *
+ * THE TICKET BAND (added 1.12.0, 2026-09-23)
+ * ------------------------------------------
+ * Until 1.12.0 each page carried its own copy of the ticket band at the bottom
+ * of its block content, so moving it meant seven hand edits. It is now drawn
+ * here, directly under the hero, on every project page. It needs no per-page
+ * data: [ans_event_tickets] already finds the page's performances through the
+ * event category whose ans_page_id points at the page.
+ *
+ * One rule keeps the rollout (and any future special case) safe: if a page's
+ * OWN content already contains [ans_event_tickets], the template draws nothing
+ * and the page's copy wins. So the template can never print two ticket bands,
+ * and a page that genuinely needs its tickets somewhere else can still say so.
  *
  * Companion to includes/page-templates.php (the Season Template). Same
  * registration mechanism; read that file's header first, it explains why we
@@ -24,7 +37,9 @@
  * WHAT IT DOES THAT THE SEASON TEMPLATE DOES NOT
  * ----------------------------------------------
  *   1. Forces the same four Kadence per-page settings (shared helper below).
- *   2. Prepends a hero and appends a Support band via `the_content`.
+ *   2. Prepends a hero AND the ticket band, and appends a Support band, via
+ *      `the_content`. The page's own blocks sit between the ticket band and
+ *      the Support band.
  *   3. Enqueues one scoped stylesheet with REAL per-breakpoint control at this
  *      site's actual edges (719px / 1024px), which is the thing the Kadence
  *      Blocks conversion was going to buy — obtained here without Kadence Pro.
@@ -41,8 +56,9 @@
  *   _ans_hero_subhead    default: none (this is the date / guest-artist line)
  *   _ans_hero_cta_label  default: "Get Tickets"
  *   _ans_hero_cta_href   default: "#tickets"
+ *   _ans_tickets_heading default: ARS_NOVA_PROJECT_TICKETS_HEADING
  *
- * All five are registered in REST, so they are settable from the WordPress MCP
+ * All six are registered in REST, so they are settable from the WordPress MCP
  * connector and appear in the block editor's page sidebar via custom fields.
  *
  * @package ars-nova-core
@@ -63,6 +79,12 @@ define( 'ARS_NOVA_PROJECT_TEMPLATE', 'ans-project-template.php' );
  * This is the single clearest demonstration of what the template is for.
  */
 define( 'ARS_NOVA_PROJECT_EYEBROW', 'Ars Nova Singers · 2026–27 Season · Confluence' );
+
+/**
+ * THE TICKET BAND HEADING. One place for every project page; a page may still
+ * override it with _ans_tickets_heading.
+ */
+define( 'ARS_NOVA_PROJECT_TICKETS_HEADING', 'Choose your night' );
 
 /** The Support band's copy and destination — likewise, one place. */
 define( 'ARS_NOVA_PROJECT_SUPPORT_HEADING', 'Support the Music' );
@@ -153,7 +175,7 @@ add_filter(
 );
 
 /**
- * Register the five hero override fields in REST.
+ * Register the hero and ticket-band override fields in REST.
  *
  * `show_in_rest` is what makes these settable from the MCP connector without a
  * connector rebuild, and readable by the block editor.
@@ -167,6 +189,7 @@ add_action(
 			'_ans_hero_subhead',
 			'_ans_hero_cta_label',
 			'_ans_hero_cta_href',
+			'_ans_tickets_heading',
 		);
 
 		foreach ( $fields as $field ) {
@@ -259,6 +282,59 @@ function arsnova_project_hero( $post ) {
 }
 
 /**
+ * Does this page's OWN content already carry the ticket picker?
+ *
+ * When it does, the page has placed its tickets itself and the template stays
+ * out of the way. Checks the block as well as the shortcode, because the
+ * ticketing bridge offers both.
+ *
+ * @param WP_Post $post The page.
+ * @return bool
+ */
+function arsnova_project_page_has_tickets( $post ) {
+	return has_shortcode( $post->post_content, 'ans_event_tickets' )
+		|| ( function_exists( 'has_block' ) && has_block( 'ans/event-tickets', $post ) );
+}
+
+/**
+ * Build the ticket band markup.
+ *
+ * id="tickets" is load-bearing: the hero's button defaults to href="#tickets",
+ * and the navy colour rules in project-template.css are keyed to that id.
+ *
+ * Returns an empty string when the ticketing bridge is not active, so the page
+ * never prints a raw shortcode.
+ *
+ * ⚠️ Scope note: the_content also runs in secondary loops and feeds, but the
+ * filter below only calls this for the main query of a singular page.
+ *
+ * @param WP_Post $post The page.
+ * @return string
+ */
+function arsnova_project_tickets( $post ) {
+	if ( ! shortcode_exists( 'ans_event_tickets' ) || arsnova_project_page_has_tickets( $post ) ) {
+		return '';
+	}
+
+	$heading = arsnova_project_field( $post->ID, '_ans_tickets_heading', ARS_NOVA_PROJECT_TICKETS_HEADING );
+
+	/*
+	 * The SHORTCODE goes into the content, not its rendered HTML. This filter
+	 * runs at priority 9, before wpautop (10); WordPress's own do_shortcode (11)
+	 * then renders it exactly as it would from page content, and
+	 * shortcode_unautop keeps wpautop's <p> away from it. Pre-rendered picker
+	 * HTML would instead be run through wpautop, which inserts <p> and <br>
+	 * into the date buttons. The blank lines around it are what let
+	 * shortcode_unautop recognise it as a standalone shortcode.
+	 */
+	$heading = str_replace( array( '"', '[', ']' ), '', wp_strip_all_tags( $heading ) );
+
+	return '<section id="tickets" class="ansp-tickets"><div class="ansp-tickets__inner">'
+		. "\n\n" . '[ans_event_tickets heading="' . $heading . '"]' . "\n\n"
+		. '</div></section>';
+}
+
+/**
  * Build the Support band markup.
  *
  * @return string
@@ -280,7 +356,8 @@ function arsnova_project_support() {
 }
 
 /**
- * Inject the hero before the page's blocks and the Support band after them.
+ * Inject the hero and the ticket band before the page's blocks, and the
+ * Support band after them.
  *
  * Deliberately NOT wrapped in a container div: every band on these pages is
  * `alignfull`, and inserting an element between .entry-content and the blocks
@@ -309,6 +386,7 @@ add_filter(
 		}
 
 		return arsnova_project_hero( $post )
+			. arsnova_project_tickets( $post )
 			. $content
 			. arsnova_project_support();
 	},
@@ -325,11 +403,31 @@ add_action(
 			return;
 		}
 
+		/*
+		 * The ticket picker's own CSS and JS. The ticketing bridge only enqueues
+		 * them when it finds [ans_event_tickets] in post_content, and the band
+		 * above is drawn by this template, not by the page. The bridge REGISTERS
+		 * both handles on every request at priority 10, so enqueuing them here
+		 * at priority 20 is enough, with no change to the bridge. Without this
+		 * the band renders its markup with no styling and a dead Add to cart,
+		 * which looks almost right (see ars-nova-core PR #3 for the same trap
+		 * inside Project Modules).
+		 */
+		if ( ! arsnova_project_page_has_tickets( get_queried_object() ) ) {
+			if ( wp_style_is( 'ans-event-tickets', 'registered' ) ) {
+				wp_enqueue_style( 'ans-event-tickets' );
+			}
+			if ( wp_script_is( 'ans-event-tickets', 'registered' ) ) {
+				wp_enqueue_script( 'ans-event-tickets' );
+			}
+		}
+
 		wp_enqueue_style(
 			'ans-project-template',
 			plugins_url( 'assets/css/project-template.css', ARS_NOVA_CORE_DIR . 'ars-nova-core.php' ),
 			array(),
 			ARS_NOVA_CORE_VERSION
 		);
-	}
+	},
+	20 // After the ticketing bridge registers its handles at 10.
 );
